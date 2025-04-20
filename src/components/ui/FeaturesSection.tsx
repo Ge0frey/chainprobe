@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { FeatureCard } from './FeatureCard';
+import { Link } from 'react-router-dom';
 import { 
   RiFlowChart, 
   RiWalletLine, 
@@ -19,6 +20,7 @@ export function FeaturesSection() {
       icon: <RiFlowChart className="text-2xl" />,
       color: 'blue' as const,
       delay: 0.1,
+      path: '/transaction-flow'
     },
     {
       title: 'Wallet Analysis',
@@ -26,6 +28,7 @@ export function FeaturesSection() {
       icon: <RiWalletLine className="text-2xl" />,
       color: 'purple' as const,
       delay: 0.2,
+      path: '/wallet-analysis'
     },
     {
       title: 'Entity Recognition',
@@ -33,6 +36,7 @@ export function FeaturesSection() {
       icon: <RiUserSearchLine className="text-2xl" />,
       color: 'green' as const,
       delay: 0.3,
+      path: '/entity-labels'
     },
     {
       title: 'Transaction Clustering',
@@ -40,6 +44,7 @@ export function FeaturesSection() {
       icon: <RiGroupLine className="text-2xl" />,
       color: 'amber' as const,
       delay: 0.4,
+      path: '/transaction-clustering'
     },
   ];
   
@@ -58,14 +63,15 @@ export function FeaturesSection() {
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {features.map((feature, index) => (
-          <FeatureCard
-            key={index}
-            title={feature.title}
-            description={feature.description}
-            icon={feature.icon}
-            color={feature.color}
-            delay={feature.delay}
-          />
+          <Link key={index} to={feature.path}>
+            <FeatureCard
+              title={feature.title}
+              description={feature.description}
+              icon={feature.icon}
+              color={feature.color}
+              delay={feature.delay}
+            />
+          </Link>
         ))}
       </div>
       
