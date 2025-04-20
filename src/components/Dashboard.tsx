@@ -1,116 +1,117 @@
 import { useState } from 'react';
-import { useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { fetchWalletTransactions } from '../services/solana';
+import { Spinner } from './ui/Spinner';
+
+const HELIUS_API_KEY = import.meta.env.VITE_HELIUS_API_KEY;
+const HELIUS_RPC_URL = `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+const connection = new Connection(HELIUS_RPC_URL);
+
+export interface HeliusTransaction {
+  signature: string;
+  blockTime: number;
+  confirmationStatus: string;
+  fee: number;
+}
 
 export default function Dashboard() {
-  const { connection } = useConnection();
-  const [searchAddress, setSearchAddress] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
 
-  const { data: transactions, isLoading, error } = useQuery({
+  const { data: transactions, isLoading, error } = useQuery<HeliusTransaction[]>({
     queryKey: ['transactions', currentAddress],
-    queryFn: () => 
-      currentAddress ? fetchWalletTransactions(connection, new PublicKey(currentAddress)) : null,
+    queryFn: async () => {
+      if (!currentAddress) throw new Error('No address provided');
+      try {
+        const pubKey = new PublicKey(currentAddress);
+        const result = await fetchWalletTransactions(connection, pubKey, 20);
+        return result as HeliusTransaction[];
+      } catch (e) {
+        throw new Error('Invalid Solana address format');
+      }
+    },
     enabled: !!currentAddress,
+    retry: false,
   });
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchAddress) {
-      try {
-        new PublicKey(searchAddress); // Validate address
-        setCurrentAddress(searchAddress);
-      } catch (error) {
-        alert('Invalid Solana address');
-      }
-    }
+    setCurrentAddress(searchInput);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:text-3xl sm:tracking-tight">
-            Forensic Analysis Dashboard
-          </h2>
-        </div>
-      </div>
-
-      {/* Search Form */}
-      <div className="mt-4">
-        <form onSubmit={handleSearch} className="flex space-x-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              value={searchAddress}
-              onChange={(e) => setSearchAddress(e.target.value)}
-              placeholder="Enter Solana wallet address"
-              className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm sm:leading-6 bg-white dark:bg-gray-800"
-            />
-          </div>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Solana Transaction Dashboard</h1>
+      
+      <form onSubmit={handleSubmit} className="mb-6">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Enter Solana wallet address"
+            className="flex-1 px-4 py-2 border rounded"
+          />
           <button
             type="submit"
-            className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Search
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
 
-      {/* Results */}
-      {isLoading ? (
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading transactions...</p>
+      {isLoading && (
+        <div className="flex justify-center">
+          <Spinner />
         </div>
-      ) : error ? (
-        <div className="text-center text-red-600 dark:text-red-400">
-          <p>Error loading transactions. Please try again.</p>
+      )}
+
+      {error && (
+        <div className="text-red-600 mb-4">
+          {error instanceof Error ? error.message : 'An error occurred'}
         </div>
-      ) : transactions && transactions.length > 0 ? (
-        <div className="mt-8 flow-root">
-          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-              <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-                <thead>
-                  <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-0">
-                      Signature
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
-                      Block Time
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {transactions.map((tx: any) => (
-                    <tr key={tx?.signature}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-0">
-                        {tx?.signature ? `${tx.signature.slice(0, 20)}...` : 'N/A'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {tx?.blockTime ? new Date(tx.blockTime * 1000).toLocaleString() : 'N/A'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {tx?.confirmationStatus || 'N/A'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      )}
+
+      {transactions && transactions.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="px-4 py-2">Signature</th>
+                <th className="px-4 py-2">Time</th>
+                <th className="px-4 py-2">Status</th>
+                <th className="px-4 py-2">Fee (SOL)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.map((tx: HeliusTransaction) => (
+                <tr key={tx.signature} className="border-t">
+                  <td className="px-4 py-2 font-mono text-sm">{tx.signature.slice(0, 16)}...</td>
+                  <td className="px-4 py-2">
+                    {new Date(tx.blockTime * 1000).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className={`px-2 py-1 rounded ${
+                      tx.confirmationStatus === 'finalized' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {tx.confirmationStatus}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2">{(tx.fee / 1e9).toFixed(6)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ) : currentAddress ? (
-        <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
-          <p>No transactions found for this address.</p>
+      )}
+
+      {transactions && transactions.length === 0 && (
+        <div className="text-center text-gray-600">
+          No transactions found for this address
         </div>
-      ) : null}
+      )}
     </div>
   );
 } 
