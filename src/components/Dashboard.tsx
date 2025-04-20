@@ -137,54 +137,6 @@ export default function Dashboard() {
         )}
       </div>
       
-      {/* Quick Links */}
-      <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4"
-      >
-        <motion.div variants={itemVariants}>
-          <Link to="/transaction-flow" className="glass-panel flex flex-col items-center justify-center p-6 card-hover">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 mb-4">
-              <RiFlowChart className="text-2xl text-blue-600 dark:text-blue-400" />
-            </div>
-            <h2 className="text-lg font-semibold text-blue-800 dark:text-blue-300">Transaction Flow</h2>
-            <p className="text-sm text-blue-600 dark:text-blue-400 text-center mt-1">Visualize transaction paths</p>
-          </Link>
-        </motion.div>
-        
-        <motion.div variants={itemVariants}>
-          <Link to="/wallet-analysis" className="glass-panel flex flex-col items-center justify-center p-6 card-hover">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-purple-100 dark:bg-purple-900/30 mb-4">
-              <RiWalletLine className="text-2xl text-purple-600 dark:text-purple-400" />
-            </div>
-            <h2 className="text-lg font-semibold text-purple-800 dark:text-purple-300">Wallet Analysis</h2>
-            <p className="text-sm text-purple-600 dark:text-purple-400 text-center mt-1">Deep dive into wallet activity</p>
-          </Link>
-        </motion.div>
-        
-        <motion.div variants={itemVariants}>
-          <Link to="/entity-labels" className="glass-panel flex flex-col items-center justify-center p-6 card-hover">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-900/30 mb-4">
-              <RiUserSearchLine className="text-2xl text-green-600 dark:text-green-400" />
-            </div>
-            <h2 className="text-lg font-semibold text-green-800 dark:text-green-300">Entity Labels</h2>
-            <p className="text-sm text-green-600 dark:text-green-400 text-center mt-1">Identify wallet entities</p>
-          </Link>
-        </motion.div>
-        
-        <motion.div variants={itemVariants}>
-          <Link to="/transaction-clustering" className="glass-panel flex flex-col items-center justify-center p-6 card-hover">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-900/30 mb-4">
-              <RiGroupLine className="text-2xl text-amber-600 dark:text-amber-400" />
-            </div>
-            <h2 className="text-lg font-semibold text-amber-800 dark:text-amber-300">Transaction Clustering</h2>
-            <p className="text-sm text-amber-600 dark:text-amber-400 text-center mt-1">Group related transactions</p>
-          </Link>
-        </motion.div>
-      </motion.div>
-      
       {/* Search form */}
       <div className="glass-panel p-6 mb-6">
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
