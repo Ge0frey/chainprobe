@@ -64,7 +64,9 @@ export function FeatureCard({ title, description, icon, color, delay = 0 }: Feat
         delay: delay,
         ease: [0.25, 0.1, 0.25, 1]
       }}
-      className={`relative overflow-hidden rounded-xl p-6 ${styles.bgLight} ${styles.bgDark} backdrop-blur-sm border border-white/20 dark:border-gray-700/30 shadow-lg`}
+      whileHover={{ scale: 1.03, y: -5 }}
+      whileTap={{ scale: 0.98 }}
+      className={`relative overflow-hidden rounded-xl p-6 ${styles.bgLight} ${styles.bgDark} backdrop-blur-sm border border-white/20 dark:border-gray-700/30 shadow-lg card-hover transition-all duration-300`}
     >
       <div className="absolute right-0 top-0 h-16 w-16 translate-x-1/3 -translate-y-1/3 transform rounded-full bg-white/40 dark:bg-white/5 blur-2xl"></div>
       
