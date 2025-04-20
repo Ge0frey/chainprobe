@@ -9,7 +9,7 @@ export default function Dashboard() {
   const [searchAddress, setSearchAddress] = useState('');
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
 
-  const { data: transactions, isLoading } = useQuery({
+  const { data: transactions, isLoading, error } = useQuery({
     queryKey: ['transactions', currentAddress],
     queryFn: () => 
       currentAddress ? fetchWalletTransactions(connection, new PublicKey(currentAddress)) : null,
@@ -65,7 +65,11 @@ export default function Dashboard() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading transactions...</p>
         </div>
-      ) : transactions ? (
+      ) : error ? (
+        <div className="text-center text-red-600 dark:text-red-400">
+          <p>Error loading transactions. Please try again.</p>
+        </div>
+      ) : transactions && transactions.length > 0 ? (
         <div className="mt-8 flow-root">
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
@@ -85,15 +89,15 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {transactions.map((tx: any) => (
-                    <tr key={tx.signature}>
+                    <tr key={tx?.signature}>
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-0">
-                        {tx.signature.slice(0, 20)}...
+                        {tx?.signature ? `${tx.signature.slice(0, 20)}...` : 'N/A'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(tx.blockTime * 1000).toLocaleString()}
+                        {tx?.blockTime ? new Date(tx.blockTime * 1000).toLocaleString() : 'N/A'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {tx.confirmationStatus}
+                        {tx?.confirmationStatus || 'N/A'}
                       </td>
                     </tr>
                   ))}
@@ -101,6 +105,10 @@ export default function Dashboard() {
               </table>
             </div>
           </div>
+        </div>
+      ) : currentAddress ? (
+        <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
+          <p>No transactions found for this address.</p>
         </div>
       ) : null}
     </div>
