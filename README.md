@@ -73,7 +73,7 @@ npm install
 3. Create a \`.env\` file in the root directory:
 \`\`\`env
 VITE_HELIUS_API_KEY=your_api_key_here
-VITE_SOLANA_NETWORK=devnet  # or mainnet-beta
+VITE_SOLANA_NETWORK=mainnet-beta 
 \`\`\`
 
 4. Start the development server:

@@ -2,8 +2,8 @@ import { Connection, PublicKey, ParsedTransactionWithMeta } from '@solana/web3.j
 import axios from 'axios';
 
 const HELIUS_API_KEY = import.meta.env.VITE_HELIUS_API_KEY;
-const HELIUS_RPC_URL = `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
-const HELIUS_API_URL = `https://api-devnet.helius.xyz/v0`;
+const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+const HELIUS_API_URL = `https://api-mainnet.helius.xyz/v0`;
 
 // Create a connection using Helius RPC URL
 const connection = new Connection(HELIUS_RPC_URL);

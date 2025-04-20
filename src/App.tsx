@@ -15,7 +15,7 @@ import TransactionClustering from './components/TransactionClustering';
 const queryClient = new QueryClient();
 
 // You can use other clusters like 'testnet', 'devnet', or your own RPC endpoint
-const endpoint = clusterApiUrl('devnet');
+const endpoint = clusterApiUrl('mainnet-beta');
 
 function App() {
   return (
