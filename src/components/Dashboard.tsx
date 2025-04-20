@@ -5,7 +5,7 @@ import { fetchWalletTransactions } from '../services/solana';
 import { Spinner } from './ui/Spinner';
 
 const HELIUS_API_KEY = import.meta.env.VITE_HELIUS_API_KEY;
-const HELIUS_RPC_URL = `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 const connection = new Connection(HELIUS_RPC_URL);
 
 export interface HeliusTransaction {

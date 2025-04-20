@@ -2,15 +2,16 @@ import { Connection, PublicKey, ParsedTransactionWithMeta } from '@solana/web3.j
 import axios from 'axios';
 
 const HELIUS_API_KEY = import.meta.env.VITE_HELIUS_API_KEY;
-const HELIUS_RPC_URL = `https://devnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
 
 // Create a connection using Helius RPC URL
 const connection = new Connection(HELIUS_RPC_URL);
 
-interface HeliusTransaction {
+export interface HeliusTransaction {
   signature: string;
   blockTime: number;
-  confirmationStatus: string;
+  confirmationStatus: 'processed' | 'confirmed' | 'finalized';
+  fee: number;
 }
 
 export async function fetchWalletTransactions(
@@ -19,38 +20,32 @@ export async function fetchWalletTransactions(
   limit: number = 20
 ): Promise<HeliusTransaction[]> {
   try {
-    const response = await axios.post(
-      HELIUS_RPC_URL,
-      {
-        jsonrpc: "2.0",
-        id: "my-id",
-        method: "getSignaturesForAddress",
-        params: [
-          address.toString(),
-          {
-            limit,
-          },
-        ],
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
+    const signatures = await connection.getSignaturesForAddress(
+      address,
+      { limit },
+      'confirmed'
     );
 
-    if (response.data.error) {
-      throw new Error(response.data.error.message);
+    if (!signatures.length) {
+      return [];
     }
 
-    const signatures = response.data.result;
-    
-    // Map the signatures to the format we need
-    return signatures.map((sig: any) => ({
-      signature: sig.signature,
-      blockTime: sig.blockTime,
-      confirmationStatus: sig.confirmationStatus || 'finalized'
-    }));
+    const transactions = await Promise.all(
+      signatures.map(async (sig) => {
+        const tx = await connection.getTransaction(sig.signature, {
+          maxSupportedTransactionVersion: 0,
+        });
+        
+        return {
+          signature: sig.signature,
+          blockTime: sig.blockTime || 0,
+          confirmationStatus: sig.confirmationStatus || 'finalized',
+          fee: tx?.meta?.fee || 0,
+        };
+      })
+    );
+
+    return transactions.filter((tx): tx is HeliusTransaction => tx !== null);
   } catch (error) {
     console.error('Error fetching transactions:', error);
     throw error;
