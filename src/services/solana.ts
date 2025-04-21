@@ -839,4 +839,400 @@ export async function clusterTransactions(centerAddress: string, depth: number =
     console.error('Error clustering transactions:', error);
     throw error;
   }
+}
+
+export interface FundingHistory {
+  transactions: {
+    signature: string;
+    source: string;
+    amount: number;
+    timestamp: number;
+    sourceLabel?: string;
+    sourceType?: string;
+    isInitial: boolean;
+  }[];
+  totalAmount: number;
+  primarySources: {
+    address: string;
+    amount: number;
+    percentage: number;
+    label?: string;
+    type?: string;
+  }[];
+}
+
+export interface ActivityPattern {
+  hourlyDistribution: { hour: number; count: number }[];
+  weeklyDistribution: { day: number; count: number }[];
+  burstActivity: {
+    timestamp: number;
+    duration: number; // in minutes
+    transactionCount: number;
+    totalValue: number;
+  }[];
+  commonPatterns: {
+    pattern: string;
+    frequency: number;
+    description: string;
+    riskScore: number;
+  }[];
+  avgTransactionValue: number;
+  avgDailyTransactions: number;
+  activeHours: number[];
+  activeDays: number[];
+}
+
+export interface EntityConnection {
+  address: string;
+  label?: string;
+  type?: string;
+  firstInteraction: number;
+  lastInteraction: number;
+  totalTransactions: number;
+  totalVolume: number;
+  direction: 'incoming' | 'outgoing' | 'bidirectional';
+  riskScore: number;
+  commonTransactionTypes: { type: string; count: number }[];
+}
+
+export interface EnhancedWalletActivity extends WalletActivity {
+  fundingHistory: FundingHistory;
+  activityPatterns: ActivityPattern;
+  entityConnections: EntityConnection[];
+  riskAssessment: {
+    overallScore: number; // 0-1
+    factors: {
+      factor: string;
+      score: number;
+      explanation: string;
+    }[];
+  };
+}
+
+export async function fetchFundingHistory(address: string): Promise<FundingHistory> {
+  try {
+    const transactions = await fetchWalletTransactions(address, 1000); // Get more historical data
+    const fundingTxs = transactions.filter(tx => 
+      tx.destination === address && tx.amount > 0
+    );
+
+    // Sort by time to find initial funding
+    fundingTxs.sort((a, b) => a.blockTime - b.blockTime);
+
+    const history: FundingHistory = {
+      transactions: [],
+      totalAmount: 0,
+      primarySources: []
+    };
+
+    const sourceAmounts = new Map<string, number>();
+
+    for (const tx of fundingTxs) {
+      if (tx.source) {
+        const entity = KNOWN_ENTITIES[tx.source];
+        history.transactions.push({
+          signature: tx.signature,
+          source: tx.source,
+          amount: tx.amount,
+          timestamp: tx.blockTime * 1000,
+          sourceLabel: entity?.label,
+          sourceType: entity?.type,
+          isInitial: history.transactions.length === 0
+        });
+
+        history.totalAmount += tx.amount;
+        sourceAmounts.set(
+          tx.source, 
+          (sourceAmounts.get(tx.source) || 0) + tx.amount
+        );
+      }
+    }
+
+    // Calculate primary sources
+    const sortedSources = Array.from(sourceAmounts.entries())
+      .sort((a, b) => b[1] - a[1]);
+
+    history.primarySources = sortedSources.map(([address, amount]) => {
+      const entity = KNOWN_ENTITIES[address];
+      return {
+        address,
+        amount,
+        percentage: (amount / history.totalAmount) * 100,
+        label: entity?.label,
+        type: entity?.type
+      };
+    });
+
+    return history;
+  } catch (error) {
+    console.error('Error fetching funding history:', error);
+    throw error;
+  }
+}
+
+export async function analyzeActivityPatterns(address: string): Promise<ActivityPattern> {
+  try {
+    const transactions = await fetchWalletTransactions(address, 1000);
+    const pattern: ActivityPattern = {
+      hourlyDistribution: Array.from({ length: 24 }, (_, i) => ({ hour: i, count: 0 })),
+      weeklyDistribution: Array.from({ length: 7 }, (_, i) => ({ day: i, count: 0 })),
+      burstActivity: [],
+      commonPatterns: [],
+      avgTransactionValue: 0,
+      avgDailyTransactions: 0,
+      activeHours: [],
+      activeDays: []
+    };
+
+    let totalValue = 0;
+    const txsByHour = new Map<number, number>();
+    const txsByDay = new Map<number, number>();
+    const txTimeWindows: number[] = [];
+
+    transactions.forEach(tx => {
+      const date = new Date(tx.blockTime * 1000);
+      const hour = date.getUTCHours();
+      const day = date.getUTCDay();
+
+      // Update distributions
+      pattern.hourlyDistribution[hour].count++;
+      pattern.weeklyDistribution[day].count++;
+
+      // Track transaction times for burst analysis
+      txTimeWindows.push(tx.blockTime);
+
+      // Update averages
+      totalValue += tx.amount || 0;
+
+      // Update hour and day counts
+      txsByHour.set(hour, (txsByHour.get(hour) || 0) + 1);
+      txsByDay.set(day, (txsByDay.get(day) || 0) + 1);
+    });
+
+    // Calculate averages
+    pattern.avgTransactionValue = totalValue / transactions.length;
+    pattern.avgDailyTransactions = transactions.length / 30; // Assuming 30 days of data
+
+    // Find active periods
+    pattern.activeHours = Array.from(txsByHour.entries())
+      .filter(([_, count]) => count > pattern.avgDailyTransactions)
+      .map(([hour]) => hour);
+
+    pattern.activeDays = Array.from(txsByDay.entries())
+      .filter(([_, count]) => count > pattern.avgDailyTransactions * 7)
+      .map(([day]) => day);
+
+    // Detect burst activity
+    const BURST_WINDOW = 15 * 60; // 15 minutes in seconds
+    let currentBurst = {
+      start: 0,
+      count: 0,
+      value: 0
+    };
+
+    txTimeWindows.sort((a, b) => a - b);
+    
+    for (let i = 0; i < txTimeWindows.length; i++) {
+      const currentTime = txTimeWindows[i];
+      
+      if (currentBurst.start === 0) {
+        currentBurst.start = currentTime;
+        currentBurst.count = 1;
+        currentBurst.value = transactions[i].amount || 0;
+      } else if (currentTime - currentBurst.start <= BURST_WINDOW) {
+        currentBurst.count++;
+        currentBurst.value += transactions[i].amount || 0;
+      } else {
+        if (currentBurst.count > 5) { // Minimum 5 transactions to consider it a burst
+          pattern.burstActivity.push({
+            timestamp: currentBurst.start * 1000,
+            duration: (txTimeWindows[i-1] - currentBurst.start) / 60, // Convert to minutes
+            transactionCount: currentBurst.count,
+            totalValue: currentBurst.value
+          });
+        }
+        currentBurst = {
+          start: currentTime,
+          count: 1,
+          value: transactions[i].amount || 0
+        };
+      }
+    }
+
+    // Identify common patterns
+    const patterns = [
+      {
+        test: (p: ActivityPattern) => p.burstActivity.length > 0,
+        pattern: 'Burst Activity',
+        description: 'Multiple transactions in short time windows',
+        riskScore: 0.6
+      },
+      {
+        test: (p: ActivityPattern) => p.activeHours.length <= 4,
+        pattern: 'Time-Restricted Activity',
+        description: 'Activity concentrated in specific time windows',
+        riskScore: 0.4
+      },
+      {
+        test: (p: ActivityPattern) => {
+          const stdDev = calculateStdDev(p.hourlyDistribution.map(h => h.count));
+          return stdDev > p.avgDailyTransactions * 2;
+        },
+        pattern: 'Irregular Activity',
+        description: 'High variance in transaction timing',
+        riskScore: 0.7
+      }
+    ];
+
+    pattern.commonPatterns = patterns
+      .filter(p => p.test(pattern))
+      .map(p => ({
+        pattern: p.pattern,
+        frequency: transactions.length,
+        description: p.description,
+        riskScore: p.riskScore
+      }));
+
+    return pattern;
+  } catch (error) {
+    console.error('Error analyzing activity patterns:', error);
+    throw error;
+  }
+}
+
+function calculateStdDev(numbers: number[]): number {
+  const mean = numbers.reduce((a, b) => a + b) / numbers.length;
+  const variance = numbers.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / numbers.length;
+  return Math.sqrt(variance);
+}
+
+export async function analyzeEntityConnections(address: string): Promise<EntityConnection[]> {
+  try {
+    const transactions = await fetchWalletTransactions(address, 1000);
+    const connections = new Map<string, EntityConnection>();
+
+    transactions.forEach(tx => {
+      let interactionAddress: string | undefined;
+      let direction: 'incoming' | 'outgoing' | 'bidirectional';
+
+      if (tx.source === address && tx.destination) {
+        interactionAddress = tx.destination;
+        direction = 'outgoing';
+      } else if (tx.destination === address && tx.source) {
+        interactionAddress = tx.source;
+        direction = 'incoming';
+      } else {
+        return;
+      }
+
+      if (!interactionAddress) return;
+
+      const existing = connections.get(interactionAddress);
+      const entity = KNOWN_ENTITIES[interactionAddress];
+      const timestamp = tx.blockTime * 1000;
+
+      if (existing) {
+        existing.totalTransactions++;
+        existing.totalVolume += tx.amount || 0;
+        existing.lastInteraction = Math.max(existing.lastInteraction, timestamp);
+        
+        if (existing.direction !== direction) {
+          existing.direction = 'bidirectional';
+        }
+
+        const typeIndex = existing.commonTransactionTypes.findIndex(t => t.type === tx.type);
+        if (typeIndex >= 0) {
+          existing.commonTransactionTypes[typeIndex].count++;
+        } else {
+          existing.commonTransactionTypes.push({ type: tx.type, count: 1 });
+        }
+      } else {
+        connections.set(interactionAddress, {
+          address: interactionAddress,
+          label: entity?.label,
+          type: entity?.type,
+          firstInteraction: timestamp,
+          lastInteraction: timestamp,
+          totalTransactions: 1,
+          totalVolume: tx.amount || 0,
+          direction,
+          riskScore: 0,
+          commonTransactionTypes: [{ type: tx.type, count: 1 }]
+        });
+      }
+    });
+
+    // Calculate risk scores
+    for (const connection of connections.values()) {
+      let riskScore = 0;
+
+      // Factors that increase risk score
+      if (connection.direction === 'bidirectional') riskScore += 0.2;
+      if (connection.totalTransactions > 50) riskScore += 0.3;
+      if (connection.totalVolume > 100) riskScore += 0.3;
+      if (!connection.label) riskScore += 0.2; // Unknown entity
+
+      // Normalize risk score
+      connection.riskScore = Math.min(riskScore, 1);
+    }
+
+    return Array.from(connections.values())
+      .sort((a, b) => b.totalVolume - a.totalVolume);
+  } catch (error) {
+    console.error('Error analyzing entity connections:', error);
+    throw error;
+  }
+}
+
+export async function getEnhancedWalletActivity(address: string): Promise<EnhancedWalletActivity> {
+  try {
+    const [
+      baseActivity,
+      fundingHistory,
+      activityPatterns,
+      entityConnections
+    ] = await Promise.all([
+      analyzeWalletActivity(address),
+      fetchFundingHistory(address),
+      analyzeActivityPatterns(address),
+      analyzeEntityConnections(address)
+    ]);
+
+    // Calculate overall risk score
+    const riskFactors = [
+      {
+        factor: 'Funding Sources',
+        score: fundingHistory.primarySources.filter(s => !s.label).length / fundingHistory.primarySources.length,
+        explanation: 'Percentage of unknown funding sources'
+      },
+      {
+        factor: 'Activity Patterns',
+        score: activityPatterns.commonPatterns.reduce((acc, p) => acc + p.riskScore, 0) / 
+               Math.max(activityPatterns.commonPatterns.length, 1),
+        explanation: 'Suspicious activity patterns detected'
+      },
+      {
+        factor: 'Entity Connections',
+        score: entityConnections.reduce((acc, c) => acc + c.riskScore, 0) / 
+               Math.max(entityConnections.length, 1),
+        explanation: 'Risk assessment of connected entities'
+      }
+    ];
+
+    const overallScore = riskFactors.reduce((acc, f) => acc + f.score, 0) / riskFactors.length;
+
+    return {
+      ...baseActivity,
+      fundingHistory,
+      activityPatterns,
+      entityConnections,
+      riskAssessment: {
+        overallScore,
+        factors: riskFactors
+      }
+    };
+  } catch (error) {
+    console.error('Error getting enhanced wallet activity:', error);
+    throw error;
+  }
 } 

@@ -15,8 +15,9 @@ import {
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
-import { analyzeWalletActivity, fetchTokenBalances, fetchWalletTransactions } from '../services/solana';
+import { getEnhancedWalletActivity } from '../services/solana';
 import { Spinner } from './ui/Spinner';
+import { format } from 'date-fns';
 
 ChartJS.register(
   CategoryScale,
@@ -35,33 +36,13 @@ export default function WalletAnalysis() {
   const [searchAddress, setSearchAddress] = useState('');
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
 
-  // Fetch wallet activity data
+  // Fetch enhanced wallet activity data
   const { 
     data: activity, 
-    isLoading: activityLoading 
+    isLoading 
   } = useQuery({
-    queryKey: ['wallet-activity', currentAddress],
-    queryFn: () => currentAddress ? analyzeWalletActivity(currentAddress) : null,
-    enabled: !!currentAddress,
-  });
-
-  // Fetch token balances
-  const { 
-    data: tokenBalances, 
-    isLoading: balancesLoading 
-  } = useQuery({
-    queryKey: ['token-balances', currentAddress],
-    queryFn: () => currentAddress ? fetchTokenBalances(currentAddress) : null,
-    enabled: !!currentAddress,
-  });
-
-  // Fetch transactions for timeline analysis
-  const { 
-    data: transactions, 
-    isLoading: txLoading 
-  } = useQuery({
-    queryKey: ['transactions', currentAddress],
-    queryFn: () => currentAddress ? fetchWalletTransactions(currentAddress, 100) : null,
+    queryKey: ['enhanced-wallet-activity', currentAddress],
+    queryFn: () => currentAddress ? getEnhancedWalletActivity(currentAddress) : null,
     enabled: !!currentAddress,
   });
 
@@ -85,112 +66,48 @@ export default function WalletAnalysis() {
     ],
   } : null;
 
-  const tokenBalanceChartData = tokenBalances && tokenBalances.length > 0 ? {
-    labels: tokenBalances.map(token => token.symbol || token.mint.slice(0, 8)),
+  // Activity patterns chart data
+  const activityPatternsData = activity?.activityPatterns ? {
+    labels: activity.activityPatterns.hourlyDistribution.map(h => `${h.hour}:00`),
     datasets: [
       {
-        data: tokenBalances.map(token => token.value || token.uiAmount),
-        backgroundColor: tokenBalances.map(() => 
-          `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.7)`
-        ),
-        borderColor: tokenBalances.map(() => 
-          `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 1)`
-        ),
+        label: 'Transactions',
+        data: activity.activityPatterns.hourlyDistribution.map(h => h.count),
+        backgroundColor: 'rgba(153, 102, 255, 0.7)',
+        borderColor: 'rgba(153, 102, 255, 1)',
         borderWidth: 1,
       },
     ],
   } : null;
 
-  // Transaction types chart
-  const transactionTypesChartData = activity && activity.transactionsByType ? {
-    labels: activity.transactionsByType.map(t => t.type),
+  // Entity connections chart
+  const entityConnectionsData = activity?.entityConnections ? {
+    labels: activity.entityConnections.slice(0, 10).map(e => e.label || e.address.slice(0, 8)),
     datasets: [
       {
-        label: 'Transaction Count',
-        data: activity.transactionsByType.map(t => t.count),
-        backgroundColor: 'rgba(54, 162, 235, 0.7)',
-        borderColor: 'rgba(54, 162, 235, 1)',
+        label: 'Transaction Volume',
+        data: activity.entityConnections.slice(0, 10).map(e => e.totalVolume),
+        backgroundColor: activity.entityConnections.slice(0, 10).map(e => 
+          e.riskScore > 0.7 ? 'rgba(255, 99, 132, 0.7)' :
+          e.riskScore > 0.4 ? 'rgba(255, 206, 86, 0.7)' :
+          'rgba(75, 192, 192, 0.7)'
+        ),
+        borderColor: activity.entityConnections.slice(0, 10).map(e => 
+          e.riskScore > 0.7 ? 'rgba(255, 99, 132, 1)' :
+          e.riskScore > 0.4 ? 'rgba(255, 206, 86, 1)' :
+          'rgba(75, 192, 192, 1)'
+        ),
         borderWidth: 1,
       },
     ],
   } : null;
-
-  // Transaction timeline chart
-  const prepareTimelineData = () => {
-    if (!transactions || transactions.length === 0) return null;
-    
-    // Group transactions by day
-    const txByDay = new Map();
-    
-    transactions.forEach(tx => {
-      const date = new Date(tx.blockTime * 1000);
-      const day = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-      
-      if (!txByDay.has(day)) {
-        txByDay.set(day, 0);
-      }
-      
-      txByDay.set(day, txByDay.get(day) + 1);
-    });
-    
-    // Sort by date
-    const sortedData = Array.from(txByDay.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([day, count]) => ({ x: new Date(day), y: count }));
-    
-    return {
-      datasets: [
-        {
-          label: 'Transactions',
-          data: sortedData,
-          backgroundColor: 'rgba(153, 102, 255, 0.7)',
-          borderColor: 'rgba(153, 102, 255, 1)',
-          borderWidth: 2,
-          tension: 0.3,
-        },
-      ],
-    };
-  };
-  
-  const timelineChartData = transactions ? prepareTimelineData() : null;
-
-  // Transaction timeline options
-  const timelineOptions = {
-    scales: {
-      x: {
-        type: 'time' as const,
-        time: {
-          unit: 'day' as const,
-          tooltipFormat: 'PPP',
-          displayFormats: {
-            day: 'MMM d',
-          },
-        },
-        title: {
-          display: true,
-          text: 'Date',
-        },
-      },
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Transaction Count',
-        },
-      },
-    },
-    responsive: true,
-    maintainAspectRatio: false,
-  };
-
-  const isLoading = activityLoading || balancesLoading || txLoading;
 
   return (
     <div className="space-y-6">
       <div className="md:flex md:items-center md:justify-between">
         <div className="min-w-0 flex-1">
           <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:text-3xl sm:tracking-tight">
-            Wallet Analysis
+            Enhanced Wallet Analysis
           </h2>
         </div>
       </div>
@@ -229,287 +146,260 @@ export default function WalletAnalysis() {
           <Spinner />
           <p className="ml-3 text-gray-500 dark:text-gray-400">Analyzing wallet...</p>
         </div>
-      ) : activity && tokenBalances ? (
+      ) : activity ? (
         <>
-          {/* Overview Cards */}
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 bg-indigo-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                        Total Transactions
-                      </dt>
-                      <dd className="flex items-baseline">
-                        <div className="text-2xl font-semibold text-gray-900 dark:text-white">
-                          {activity.totalTransactions}
-                        </div>
-                      </dd>
-                    </dl>
-                  </div>
+          {/* Risk Assessment */}
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Risk Assessment</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Overall Risk Score</span>
+                  <span className={`text-lg font-semibold ${
+                    activity.riskAssessment.overallScore > 0.7 ? 'text-red-500' :
+                    activity.riskAssessment.overallScore > 0.4 ? 'text-yellow-500' :
+                    'text-green-500'
+                  }`}>
+                    {(activity.riskAssessment.overallScore * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                  <div 
+                    className={`h-2.5 rounded-full ${
+                      activity.riskAssessment.overallScore > 0.7 ? 'bg-red-500' :
+                      activity.riskAssessment.overallScore > 0.4 ? 'bg-yellow-500' :
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${activity.riskAssessment.overallScore * 100}%` }}
+                  ></div>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 bg-green-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+              <div className="space-y-2">
+                {activity.riskAssessment.factors.map((factor, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{factor.factor}</span>
+                    <span className={`text-sm font-medium ${
+                      factor.score > 0.7 ? 'text-red-500' :
+                      factor.score > 0.4 ? 'text-yellow-500' :
+                      'text-green-500'
+                    }`}>
+                      {(factor.score * 100).toFixed(1)}%
+                    </span>
                   </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                        Unique Interactions
-                      </dt>
-                      <dd className="flex items-baseline">
-                        <div className="text-2xl font-semibold text-gray-900 dark:text-white">
-                          {activity.uniqueInteractions.length}
-                        </div>
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
+          </div>
 
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                        Token Types
-                      </dt>
-                      <dd className="flex items-baseline">
-                        <div className="text-2xl font-semibold text-gray-900 dark:text-white">
-                          {tokenBalances.length}
-                        </div>
-                      </dd>
-                    </dl>
-                  </div>
+          {/* Funding History */}
+          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Funding History</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Funding</h4>
+                  <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+                    {activity.fundingHistory.totalAmount.toFixed(2)} SOL
+                  </p>
+                </div>
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Primary Sources</h4>
+                  <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+                    {activity.fundingHistory.primarySources.length}
+                  </p>
+                </div>
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Initial Funding</h4>
+                  <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
+                    {activity.fundingHistory.transactions[0]?.amount.toFixed(2)} SOL
+                  </p>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 bg-amber-500 rounded-md p-3">
-                    <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                        Last Active
-                      </dt>
-                      <dd className="flex items-baseline">
-                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {new Date(activity.lastActive).toLocaleDateString()}
-                        </div>
-                      </dd>
-                    </dl>
-                  </div>
+              {/* Primary Sources Table */}
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Primary Funding Sources</h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Source</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Percentage</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {activity.fundingHistory.primarySources.map((source, index) => (
+                        <tr key={index}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                            {source.label || source.address.slice(0, 8) + '...'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {source.amount.toFixed(2)} SOL
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {source.percentage.toFixed(1)}%
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {source.type || 'Unknown'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Funding Source */}
-          {activity.fundingSource && (
-            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
-              <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white">Funding Source</h3>
-              </div>
-              <div className="p-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Source Address</h4>
-                    <p className="mt-1 text-sm text-gray-900 dark:text-white font-mono">
-                      {activity.fundingSource.address}
-                      {activity.fundingSource.label && (
-                        <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
-                          {activity.fundingSource.label}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="mt-2 sm:mt-0">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Amount</h4>
-                    <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                      {activity.fundingSource.amount} SOL
-                    </p>
-                  </div>
-                  <div className="mt-2 sm:mt-0">
-                    <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Date</h4>
-                    <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                      {new Date(activity.fundingSource.time).toLocaleDateString()}
-                    </p>
-                  </div>
+          {/* Activity Patterns */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Activity Distribution</h3>
+              {activityPatternsData && (
+                <div className="h-64">
+                  <Bar
+                    data={activityPatternsData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: false,
+                        },
+                        title: {
+                          display: true,
+                          text: 'Hourly Transaction Distribution'
+                        }
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                        }
+                      }
+                    }}
+                  />
                 </div>
+              )}
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Activity Patterns</h4>
+                <div className="space-y-2">
+                  {activity.activityPatterns.commonPatterns.map((pattern, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{pattern.pattern}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{pattern.description}</p>
+                      </div>
+                      <span className={`text-sm font-medium px-2 py-1 rounded ${
+                        pattern.riskScore > 0.7 ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' :
+                        pattern.riskScore > 0.4 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100' :
+                        'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'
+                      }`}>
+                        Risk: {(pattern.riskScore * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Entity Connections */}
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Entity Connections</h3>
+              {entityConnectionsData && (
+                <div className="h-64">
+                  <Bar
+                    data={entityConnectionsData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: false,
+                        },
+                        title: {
+                          display: true,
+                          text: 'Top Entity Interactions by Volume'
+                        }
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              )}
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Top Connections</h4>
+                <div className="space-y-2">
+                  {activity.entityConnections.slice(0, 5).map((connection, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {connection.label || connection.address.slice(0, 8) + '...'}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {connection.type || 'Unknown'} • {connection.totalTransactions} transactions
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {connection.totalVolume.toFixed(2)} SOL
+                        </p>
+                        <p className={`text-xs ${
+                          connection.direction === 'bidirectional' ? 'text-purple-500' :
+                          connection.direction === 'incoming' ? 'text-green-500' :
+                          'text-red-500'
+                        }`}>
+                          {connection.direction}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Burst Activity */}
+          {activity.activityPatterns.burstActivity.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Burst Activity Detection</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Time</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Duration</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transactions</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {activity.activityPatterns.burstActivity.map((burst, index) => (
+                      <tr key={index}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {format(new Date(burst.timestamp), 'PPp')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {burst.duration.toFixed(1)} min
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {burst.transactionCount}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {burst.totalValue.toFixed(2)} SOL
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Activity Stats */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-              <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Volume Distribution</h3>
-              </div>
-              {volumeChartData && (
-                <div className="p-5">
-                  <div className="h-64">
-                    <Doughnut
-                      data={volumeChartData}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            position: 'bottom',
-                          },
-                        },
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Transaction Types */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-              <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Transaction Types</h3>
-              </div>
-              {transactionTypesChartData && (
-                <div className="p-5">
-                  <div className="h-64">
-                    <Bar
-                      data={transactionTypesChartData}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            display: false,
-                          },
-                        },
-                        scales: {
-                          y: {
-                            beginAtZero: true,
-                          },
-                        },
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Token Holdings */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-              <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Token Holdings</h3>
-              </div>
-              {tokenBalanceChartData && (
-                <div className="p-5">
-                  <div className="h-64">
-                    <Doughnut
-                      data={tokenBalanceChartData}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            position: 'bottom',
-                            labels: {
-                              boxWidth: 12,
-                            },
-                          },
-                        },
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Activity Timeline */}
-            <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-              <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Activity Timeline</h3>
-              </div>
-              {timelineChartData && (
-                <div className="p-5">
-                  <div className="h-64">
-                    <Line
-                      data={timelineChartData}
-                      options={timelineOptions}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Top Interactions */}
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Top Interactions</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Address
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Interactions
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Entity
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {activity.uniqueInteractions.slice(0, 10).map((interaction) => (
-                    <tr key={interaction.address}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white font-mono">
-                        {interaction.address.slice(0, 10)}...{interaction.address.slice(-6)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {interaction.count}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {interaction.label ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
-                            {interaction.label}
-                          </span>
-                        ) : 'Unknown'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </>
       ) : currentAddress && !isLoading ? (
         <div className="text-center text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
