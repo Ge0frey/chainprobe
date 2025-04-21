@@ -303,6 +303,121 @@ export async function fetchTransactionFlow(address: string, days: number = 30): 
   }
 }
 
+// Function to calculate critical paths in transaction flows
+export interface CriticalPathData {
+  highValuePaths: {from: string, to: string}[];
+  frequentPaths: {from: string, to: string, count: number}[];
+  suspiciousPatterns: {
+    addresses: string[],
+    reason: string,
+    riskScore: number // 0-1 scale
+  }[];
+}
+
+export async function identifyCriticalPaths(
+  flows: TransactionFlow[], 
+  params: {
+    highValueThreshold?: number,
+    minFrequency?: number,
+    includeCircular?: boolean
+  } = {}
+): Promise<CriticalPathData> {
+  // Set default parameters
+  const highValueThreshold = params.highValueThreshold || 10; // Default 10 SOL
+  const minFrequency = params.minFrequency || 3; // Default 3 transactions
+  const includeCircular = params.includeCircular !== undefined ? params.includeCircular : true;
+  
+  // Results
+  const criticalPaths: CriticalPathData = {
+    highValuePaths: [],
+    frequentPaths: [],
+    suspiciousPatterns: []
+  };
+  
+  // Maps to track frequencies
+  const pathFrequency = new Map<string, number>();
+  const pathTotalValue = new Map<string, number>();
+  
+  // Process all transactions
+  flows.forEach(flow => {
+    const pathKey = `${flow.from}|${flow.to}`;
+    
+    // Count frequency
+    pathFrequency.set(pathKey, (pathFrequency.get(pathKey) || 0) + 1);
+    
+    // Sum values
+    pathTotalValue.set(pathKey, (pathTotalValue.get(pathKey) || 0) + flow.amount);
+    
+    // Check for high value paths
+    if (flow.amount >= highValueThreshold) {
+      criticalPaths.highValuePaths.push({
+        from: flow.from,
+        to: flow.to
+      });
+    }
+  });
+  
+  // Find frequent paths
+  for (const [path, count] of pathFrequency.entries()) {
+    if (count >= minFrequency) {
+      const [from, to] = path.split('|');
+      criticalPaths.frequentPaths.push({
+        from,
+        to,
+        count
+      });
+    }
+  }
+  
+  // Detect suspicious patterns
+  if (includeCircular) {
+    const addressGraph = new Map<string, Set<string>>();
+    
+    // Build graph
+    flows.forEach(flow => {
+      if (!addressGraph.has(flow.from)) {
+        addressGraph.set(flow.from, new Set());
+      }
+      addressGraph.get(flow.from)!.add(flow.to);
+    });
+    
+    // Find circular paths (potential wash trading or layering)
+    const findCircularPaths = (start: string, current: string, visited: Set<string>, path: string[]) => {
+      if (visited.has(current)) {
+        // If we've found a cycle and it includes the start node
+        if (current === start && path.length > 2) {
+          criticalPaths.suspiciousPatterns.push({
+            addresses: [...path],
+            reason: 'Circular fund flow detected',
+            riskScore: Math.min(0.5 + (path.length * 0.1), 1) // More hops = higher risk, max 1
+          });
+        }
+        return;
+      }
+      
+      visited.add(current);
+      path.push(current);
+      
+      const neighbors = addressGraph.get(current);
+      if (neighbors) {
+        for (const neighbor of neighbors) {
+          findCircularPaths(start, neighbor, new Set(visited), [...path]);
+        }
+      }
+      
+      path.pop();
+      visited.delete(current);
+    };
+    
+    // Start DFS from each node
+    for (const address of addressGraph.keys()) {
+      findCircularPaths(address, address, new Set(), []);
+    }
+  }
+  
+  return criticalPaths;
+}
+
 export interface EntityLabel {
   address: string;
   label: string;
