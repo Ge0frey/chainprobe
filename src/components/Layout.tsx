@@ -11,7 +11,8 @@ import {
   RiMoonLine,
   RiMenuLine,
   RiCloseLine,
-  RiQuestionLine
+  RiQuestionLine,
+  RiRadarLine
 } from 'react-icons/ri';
 import { SiSolana } from 'react-icons/si';
 import { GuideModal } from './ui/GuideModal';
@@ -118,6 +119,7 @@ export default function Layout({ children }: LayoutProps) {
               <NavLink to="/wallet-analysis" icon={<RiWalletLine />} label="Wallet Analysis" />
               <NavLink to="/entity-labels" icon={<RiUserSearchLine />} label="Entity Labels" />
               <NavLink to="/transaction-clustering" icon={<RiGroupLine />} label="Transaction Clustering" />
+              <NavLink to="/pattern-analysis" icon={<RiRadarLine />} label="Pattern Analysis" />
             </nav>
           </div>
           
@@ -203,6 +205,7 @@ export default function Layout({ children }: LayoutProps) {
                 <NavLink to="/wallet-analysis" icon={<RiWalletLine />} label="Wallet Analysis" />
                 <NavLink to="/entity-labels" icon={<RiUserSearchLine />} label="Entity Labels" />
                 <NavLink to="/transaction-clustering" icon={<RiGroupLine />} label="Transaction Clustering" />
+                <NavLink to="/pattern-analysis" icon={<RiRadarLine />} label="Pattern Analysis" />
               </nav>
             </motion.div>
           )}
