@@ -913,7 +913,7 @@ export async function fetchFundingHistory(address: string): Promise<FundingHisto
   try {
     const transactions = await fetchWalletTransactions(address, 1000); // Get more historical data
     const fundingTxs = transactions.filter(tx => 
-      tx.destination === address && tx.amount > 0
+      tx.destination === address && (tx.amount ?? 0) > 0
     );
 
     // Sort by time to find initial funding
@@ -930,20 +930,21 @@ export async function fetchFundingHistory(address: string): Promise<FundingHisto
     for (const tx of fundingTxs) {
       if (tx.source) {
         const entity = KNOWN_ENTITIES[tx.source];
+        const amount = tx.amount ?? 0;
         history.transactions.push({
           signature: tx.signature,
           source: tx.source,
-          amount: tx.amount,
+          amount,
           timestamp: tx.blockTime * 1000,
           sourceLabel: entity?.label,
           sourceType: entity?.type,
           isInitial: history.transactions.length === 0
         });
 
-        history.totalAmount += tx.amount;
+        history.totalAmount += amount;
         sourceAmounts.set(
           tx.source, 
-          (sourceAmounts.get(tx.source) || 0) + tx.amount
+          (sourceAmounts.get(tx.source) || 0) + amount
         );
       }
     }
