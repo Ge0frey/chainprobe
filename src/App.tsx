@@ -12,6 +12,7 @@ import TransactionFlow from './components/TransactionFlow';
 import WalletAnalysis from './components/WalletAnalysis';
 import EntityLabels from './components/EntityLabels';
 import TransactionClustering from './components/TransactionClustering';
+import PatternAnalysis from './components/PatternAnalysis';
 
 // Initialize QueryClient for React Query
 const queryClient = new QueryClient();
@@ -95,6 +96,7 @@ function App() {
                     <Route path="/wallet-analysis" element={<WalletAnalysis />} />
                     <Route path="/entity-labels" element={<EntityLabels />} />
                     <Route path="/transaction-clustering" element={<TransactionClustering />} />
+                    <Route path="/pattern-analysis" element={<PatternAnalysis />} />
                   </Routes>
                 </Layout>
               </div>
