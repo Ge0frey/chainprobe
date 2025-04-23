@@ -107,18 +107,18 @@ export default function PatternAnalysis() {
               <label htmlFor="wallet-address" className="block text-sm font-medium text-gray-300 mb-2">
                 Wallet Address
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <RiSearchLine className="text-gray-500" />
-                </div>
+              <div className="input-with-icon">
                 <input
                   type="text"
                   id="wallet-address"
                   value={searchAddress}
                   onChange={(e) => setSearchAddress(e.target.value)}
                   placeholder="Enter Solana wallet address"
-                  className="glass-input pl-10 pr-4 py-3 w-full text-white placeholder-gray-500 focus:ring-2 focus:ring-solana-purple/50 outline-none"
+                  className="glass-input w-full text-white"
                 />
+                <div className="icon">
+                  <RiSearchLine className="text-gray-500 text-lg" />
+                </div>
               </div>
             </div>
             <div>

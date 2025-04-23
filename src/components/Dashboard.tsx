@@ -141,15 +141,12 @@ export default function Dashboard() {
       <div className="glass-panel p-6 mb-6">
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <RiSearchLine className="text-gray-400" />
-            </div>
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Enter Solana wallet address"
-              className="block w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm focus:ring-2 focus:ring-solana-purple/50 dark:focus:ring-solana-teal/50 focus:border-transparent dark:text-white"
+              className="block w-full px-5 py-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm focus:ring-2 focus:ring-solana-purple/50 dark:focus:ring-solana-teal/50 focus:border-transparent dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
             />
           </div>
           <motion.button

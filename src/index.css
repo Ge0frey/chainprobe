@@ -93,19 +93,86 @@
     @apply bg-background text-foreground font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  
+  /* Modern input styling */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    @apply w-full px-4 py-3 
+           bg-white dark:bg-black/10 
+           border border-gray-200 dark:border-white/10 
+           rounded-xl shadow-sm
+           text-gray-900 dark:text-white 
+           placeholder-gray-500 dark:placeholder-gray-400
+           focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:focus:ring-solana-teal/30 
+           focus:border-transparent
+           transition-all duration-200;
+  }
+
+  /* Input with icon */
+  .input-with-icon {
+    @apply relative flex items-center;
+  }
+
+  .input-with-icon input {
+    @apply pl-14;
+  }
+
+  .input-with-icon .icon {
+    @apply absolute left-5 text-gray-400 pointer-events-none
+           transition-transform duration-200 flex items-center justify-center;
+  }
+
+  .input-with-icon input:focus ~ .icon {
+    @apply text-solana-purple dark:text-solana-teal 
+           scale-110 transform;
+  }
+
+  /* Search input specific styling */
+  .search-input {
+    @apply bg-white/80 dark:bg-black/20
+           hover:bg-white/90 dark:hover:bg-black/30
+           focus:bg-white dark:focus:bg-black/40
+           placeholder-gray-500 dark:placeholder-gray-400;
+  }
+
+  /* Form label styling */
+  label {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1;
+  }
+
+  /* Input group styling */
+  .input-group {
+    @apply flex flex-col space-y-1;
+  }
+
+  /* Glass input specific styling */
+  .glass-input {
+    @apply bg-white/5 dark:bg-black/10 backdrop-blur-sm 
+           border border-gray-200/20 dark:border-white/10 
+           rounded-lg text-gray-900 dark:text-white
+           placeholder-gray-500 dark:placeholder-gray-400
+           px-5 py-3
+           focus:border-white/20 focus:bg-white/10 dark:focus:bg-black/20 
+           focus:ring-2 focus:ring-solana-purple/30 dark:focus:ring-solana-teal/30 
+           transition-all duration-200
+           w-full;
+  }
 }
 
 @layer components {
   .glass-panel {
-    @apply bg-black/20 backdrop-blur-md border border-white/5 rounded-xl shadow-xl;
+    @apply bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/10 rounded-xl shadow-xl;
   }
   
   .glass-card {
-    @apply bg-black/10 backdrop-blur-md border border-white/10 rounded-xl shadow-md;
-  }
-  
-  .glass-input {
-    @apply bg-black/10 backdrop-blur-sm border border-white/10 rounded-lg focus:border-white/20 focus:bg-black/20 transition-colors;
+    @apply bg-white/5 dark:bg-black/10 backdrop-blur-md border border-white/10 rounded-xl shadow-md;
   }
   
   .gradient-text {
@@ -113,11 +180,14 @@
   }
   
   .gradient-border {
-    @apply relative before:absolute before:inset-0 before:p-[1px] before:rounded-xl before:bg-gradient-to-r before:from-solana-purple/50 before:to-solana-teal/50 before:-z-10 overflow-hidden;
+    @apply relative before:absolute before:inset-0 before:p-[1px] before:rounded-xl 
+           before:bg-gradient-to-r before:from-solana-purple/50 before:to-solana-teal/50 
+           before:-z-10 overflow-hidden;
   }
   
   .gradient-button {
-    @apply bg-gradient-to-r from-solana-purple to-solana-teal text-white rounded-lg px-4 py-2 hover:shadow-glow transition-all;
+    @apply bg-gradient-to-r from-solana-purple to-solana-teal text-white rounded-lg 
+           px-4 py-2 hover:shadow-glow transition-all;
   }
   
   .card-hover {
@@ -134,6 +204,33 @@
   
   .glow-teal {
     @apply shadow-[0_0_15px_rgba(20,241,149,0.3)];
+  }
+
+  /* Form components */
+  .form-input {
+    @apply w-full px-4 py-3 
+           bg-white/80 dark:bg-black/10 
+           border border-gray-200 dark:border-white/10 
+           rounded-xl backdrop-blur-sm
+           text-gray-900 dark:text-white
+           placeholder-gray-500 dark:placeholder-gray-400
+           focus:ring-2 focus:ring-solana-purple/30 dark:focus:ring-solana-teal/30 
+           focus:border-transparent transition-all duration-200;
+  }
+
+  .form-select {
+    @apply form-input appearance-none bg-right-8 bg-no-repeat pr-10
+           bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20"%3E%3Cpath stroke="%236B7280" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 8l4 4 4-4"/%3E%3C/svg%3E')];
+  }
+
+  .form-checkbox {
+    @apply h-5 w-5 rounded border-gray-200 dark:border-white/10 
+           text-solana-purple dark:text-solana-teal
+           focus:ring-2 focus:ring-solana-purple/30 dark:focus:ring-solana-teal/30;
+  }
+
+  .form-radio {
+    @apply form-checkbox rounded-full;
   }
 }
 
@@ -171,4 +268,19 @@
 
 .animate-pulse-glow {
   animation: pulse-glow 4s ease-in-out infinite;
+}
+
+/* Focus styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:focus:ring-solana-teal/30 
+         focus:border-transparent transition-all duration-200;
+}
+
+/* Input placeholder animation */
+input::placeholder {
+  @apply transition-opacity duration-200;
+}
+
+input:focus::placeholder {
+  @apply opacity-50;
 }
