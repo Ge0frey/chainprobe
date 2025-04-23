@@ -172,20 +172,6 @@ export default function Dashboard() {
       {/* Empty state animation */}
       {!currentAddress && !txLoading && (
         <div className="text-center py-10">
-          <div className="mx-auto w-64 h-64">
-            <Player
-              autoplay
-              loop
-              src="https://lottie.host/2e0c0f0a-6c69-4b09-a4a6-c2a0c3b4c34f/b9mOGnClNj.json"
-            />
-          </div>
-          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">
-            Enter a Solana wallet address to begin your analysis
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Search for any wallet to reveal transaction patterns and connections
-          </p>
-          
           {/* Add features section */}
           <FeaturesSection />
         </div>
