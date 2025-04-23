@@ -11,44 +11,39 @@ interface FeatureCardProps {
 
 const colorStyles = {
   blue: {
-    bgLight: 'bg-blue-50',
-    bgDark: 'dark:bg-blue-900/20',
-    iconBg: 'bg-blue-100 dark:bg-blue-900/30',
-    iconColor: 'text-blue-600 dark:text-blue-400',
-    titleColor: 'text-blue-900 dark:text-blue-300',
-    textColor: 'text-blue-700 dark:text-blue-400',
+    gradient: 'from-blue-500/20 to-blue-600/5',
+    glow: 'shadow-blue-500/20',
+    iconGradient: 'from-blue-400 to-blue-600',
+    textGradient: 'from-blue-400 to-blue-600',
+    border: 'border-blue-500/10',
   },
   purple: {
-    bgLight: 'bg-purple-50',
-    bgDark: 'dark:bg-purple-900/20',
-    iconBg: 'bg-purple-100 dark:bg-purple-900/30',
-    iconColor: 'text-purple-600 dark:text-purple-400',
-    titleColor: 'text-purple-900 dark:text-purple-300',
-    textColor: 'text-purple-700 dark:text-purple-400',
+    gradient: 'from-purple-500/20 to-purple-600/5',
+    glow: 'shadow-purple-500/20',
+    iconGradient: 'from-purple-400 to-purple-600',
+    textGradient: 'from-purple-400 to-purple-600',
+    border: 'border-purple-500/10',
   },
   green: {
-    bgLight: 'bg-green-50',
-    bgDark: 'dark:bg-green-900/20',
-    iconBg: 'bg-green-100 dark:bg-green-900/30',
-    iconColor: 'text-green-600 dark:text-green-400',
-    titleColor: 'text-green-900 dark:text-green-300',
-    textColor: 'text-green-700 dark:text-green-400',
+    gradient: 'from-green-500/20 to-green-600/5',
+    glow: 'shadow-green-500/20',
+    iconGradient: 'from-green-400 to-green-600',
+    textGradient: 'from-green-400 to-green-600',
+    border: 'border-green-500/10',
   },
   amber: {
-    bgLight: 'bg-amber-50',
-    bgDark: 'dark:bg-amber-900/20',
-    iconBg: 'bg-amber-100 dark:bg-amber-900/30',
-    iconColor: 'text-amber-600 dark:text-amber-400',
-    titleColor: 'text-amber-900 dark:text-amber-300',
-    textColor: 'text-amber-700 dark:text-amber-400',
+    gradient: 'from-amber-500/20 to-amber-600/5',
+    glow: 'shadow-amber-500/20',
+    iconGradient: 'from-amber-400 to-amber-600',
+    textGradient: 'from-amber-400 to-amber-600',
+    border: 'border-amber-500/10',
   },
   teal: {
-    bgLight: 'bg-teal-50',
-    bgDark: 'dark:bg-teal-900/20',
-    iconBg: 'bg-teal-100 dark:bg-teal-900/30',
-    iconColor: 'text-teal-600 dark:text-teal-400',
-    titleColor: 'text-teal-900 dark:text-teal-300',
-    textColor: 'text-teal-700 dark:text-teal-400',
+    gradient: 'from-teal-500/20 to-teal-600/5',
+    glow: 'shadow-teal-500/20',
+    iconGradient: 'from-teal-400 to-teal-600',
+    textGradient: 'from-teal-400 to-teal-600',
+    border: 'border-teal-500/10',
   },
 };
 
@@ -64,25 +59,50 @@ export function FeatureCard({ title, description, icon, color, delay = 0 }: Feat
         delay: delay,
         ease: [0.25, 0.1, 0.25, 1]
       }}
-      whileHover={{ scale: 1.03, y: -5 }}
+      whileHover={{ 
+        scale: 1.02, 
+        y: -5,
+        transition: { duration: 0.2 } 
+      }}
       whileTap={{ scale: 0.98 }}
-      className={`relative overflow-hidden rounded-xl p-6 ${styles.bgLight} ${styles.bgDark} backdrop-blur-sm border border-white/20 dark:border-gray-700/30 shadow-lg card-hover transition-all duration-300`}
+      className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${styles.gradient} p-6 backdrop-blur-sm border ${styles.border} shadow-lg hover:shadow-xl transition-all duration-300`}
     >
-      <div className="absolute right-0 top-0 h-16 w-16 translate-x-1/3 -translate-y-1/3 transform rounded-full bg-white/40 dark:bg-white/5 blur-2xl"></div>
+      {/* Decorative elements */}
+      <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-2xl"></div>
+      <div className="absolute -bottom-8 -left-8 h-28 w-28 rounded-full bg-white/5 blur-3xl"></div>
       
-      <div className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg ${styles.iconBg}`}>
-        <div className={styles.iconColor}>
-          {icon}
+      {/* Icon */}
+      <div className="relative z-10 mb-5">
+        <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${styles.iconGradient} p-0.5`}>
+          <div className="flex h-full w-full items-center justify-center rounded-xl bg-black/20 backdrop-blur-sm">
+            <div className="text-white text-2xl">
+              {icon}
+            </div>
+          </div>
         </div>
       </div>
       
-      <h3 className={`mb-2 text-lg font-bold ${styles.titleColor}`}>
-        {title}
-      </h3>
+      {/* Content */}
+      <div className="relative z-10">
+        <h3 className={`mb-2 text-lg font-bold bg-gradient-to-r ${styles.textGradient} bg-clip-text text-transparent`}>
+          {title}
+        </h3>
+        
+        <p className="text-sm text-white/80">
+          {description}
+        </p>
+      </div>
       
-      <p className={`text-sm ${styles.textColor}`}>
-        {description}
-      </p>
+      {/* Arrow indicator */}
+      <div className="absolute bottom-4 right-4 opacity-0 transform translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+        <motion.div 
+          animate={{ x: [0, 3, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          className={`text-xl bg-gradient-to-r ${styles.textGradient} bg-clip-text text-transparent`}
+        >
+          →
+        </motion.div>
+      </div>
     </motion.div>
   );
 } 
