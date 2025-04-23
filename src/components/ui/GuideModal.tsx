@@ -1,320 +1,238 @@
-import { Fragment, useState, useEffect } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { Dialog } from '@headlessui/react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { RiCloseLine, RiArrowLeftSLine, RiArrowRightSLine, RiInformationLine, RiWalletLine, RiFlowChart, RiUserSearchLine, RiGroupLine, RiRadarLine } from 'react-icons/ri';
 import { Player } from '@lottiefiles/react-lottie-player';
-import { 
-  RiCloseLine, 
-  RiArrowRightLine, 
-  RiArrowLeftLine, 
-  RiWalletLine,
-  RiFlowChart,
-  RiUserSearchLine,
-  RiGroupLine,
-  RiInformationLine,
-  RiSearch2Line,
-  RiLightbulbLine
-} from 'react-icons/ri';
 import { SiSolana } from 'react-icons/si';
+
+// Define the guide steps
+const guideSteps = [
+  {
+    title: "Welcome to Solana Forensics",
+    content: "This tool helps you analyze and visualize on-chain activity on the Solana blockchain. Navigate through this guide to learn about the key features.",
+    icon: <SiSolana className="text-solana-purple text-2xl" />,
+    animation: "https://assets8.lottiefiles.com/packages/lf20_m6cuL6.json"
+  },
+  {
+    title: "Transaction Flow Analysis",
+    content: "Visualize the flow of funds between wallets to track the movement of SOL and tokens across multiple hops.",
+    icon: <RiFlowChart className="text-solana-teal text-2xl" />,
+    animation: "https://assets10.lottiefiles.com/packages/lf20_tk5xibbd.json"
+  },
+  {
+    title: "Wallet Analysis",
+    content: "Analyze transaction patterns, balance history, and behavioral metrics for any Solana wallet address.",
+    icon: <RiWalletLine className="text-solana-purple text-2xl" />,
+    animation: "https://assets10.lottiefiles.com/packages/lf20_uha6bcse.json"
+  },
+  {
+    title: "Entity Labels",
+    content: "Identify and label known entities like exchanges, protocols, and other services to better understand transaction context.",
+    icon: <RiUserSearchLine className="text-solana-teal text-2xl" />,
+    animation: "https://assets5.lottiefiles.com/packages/lf20_ikvz7qhc.json"
+  },
+  {
+    title: "Transaction Clustering",
+    content: "Group related transactions to identify patterns and detect potentially suspicious activity across the network.",
+    icon: <RiGroupLine className="text-solana-purple text-2xl" />,
+    animation: "https://assets5.lottiefiles.com/packages/lf20_lqbq0sjr.json"
+  },
+  {
+    title: "Pattern Analysis",
+    content: "Use advanced analytics to detect suspicious patterns like wash trading, circular transactions, and other anomalies.",
+    icon: <RiRadarLine className="text-solana-teal text-2xl" />,
+    animation: "https://assets9.lottiefiles.com/packages/lf20_rbtawnwz.json" 
+  }
+];
 
 interface GuideModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const guides = [
-  {
-    id: 'intro',
-    title: 'Welcome to Solana Forensic Analysis',
-    description: 'This tool helps you analyze Solana blockchain transactions and identify patterns, connections, and suspicious activities.',
-    icon: <SiSolana className="text-4xl text-solana-purple" />,
-    animation: 'https://lottie.host/96a4ab68-42c1-4e63-8b0d-4249a1a1a393/XUoZ1M0HgC.json',
-    tips: [
-      'Enter a Solana wallet address to begin your analysis',
-      'Navigate between different analysis views using the sidebar',
-      'Dark mode is enabled by default for better visualization'
-    ]
-  },
-  {
-    id: 'transaction-flow',
-    title: 'Transaction Flow Analysis',
-    description: 'Visualize how funds move between wallets to identify sources, destinations, and intermediaries in transaction chains.',
-    icon: <RiFlowChart className="text-4xl text-blue-500" />,
-    animation: 'https://lottie.host/394f49ce-df66-4a31-a5cc-97a796a6c248/6Z71v4TbIy.json',
-    tips: [
-      'Search for a wallet address to see its incoming and outgoing transactions',
-      'Use filters to narrow your search by time period or transaction size',
-      'Hover over nodes to see wallet details and transaction volumes',
-      'Look for exchange wallets highlighted in amber color'
-    ]
-  },
-  {
-    id: 'wallet-analysis',
-    title: 'Wallet Analysis',
-    description: 'Examine wallet activity over time, transaction patterns, and token holdings to understand user behavior.',
-    icon: <RiWalletLine className="text-4xl text-purple-500" />,
-    animation: 'https://lottie.host/0842cc57-1c1a-460a-a50b-be95a58ed25e/JhwwJSIDrP.json',
-    tips: [
-      'Check transaction volume and frequency to identify unusual patterns',
-      'Examine token balances and historical holdings',
-      'Look for sudden spikes in activity or dormant periods',
-      'Analyze transaction counterparties to identify relationship networks'
-    ]
-  },
-  {
-    id: 'entity-labels',
-    title: 'Entity Labels',
-    description: 'Identify and categorize wallets as exchanges, DeFi protocols, NFT marketplaces, or potential suspicious actors.',
-    icon: <RiUserSearchLine className="text-4xl text-green-500" />,
-    animation: 'https://lottie.host/b2590a2c-8bc1-4c96-a316-a1dd2117e2e6/fCXcWcWkKl.json',
-    tips: [
-      'Search for addresses to retrieve their known entity types',
-      'View historical interactions with labeled entities',
-      'Use entity labels to understand the nature of transaction flows',
-      'Submit corrections if you have more accurate information about an entity'
-    ]
-  },
-  {
-    id: 'transaction-clustering',
-    title: 'Transaction Clustering',
-    description: 'Group related transactions to identify patterns, potential wash trading, and coordinated activities across multiple wallets.',
-    icon: <RiGroupLine className="text-4xl text-amber-500" />,
-    animation: 'https://lottie.host/c6b7d5ab-0eec-468d-bc25-8e9f0387cc20/dOCPd0uyF5.json',
-    tips: [
-      'Find related wallets that might belong to the same entity',
-      'Identify circular transaction patterns that could indicate wash trading',
-      'Look for temporal patterns in transaction timing',
-      'Analyze clustered transactions to detect coordinated movements'
-    ]
-  },
-  {
-    id: 'search-tips',
-    title: 'Effective Search Strategies',
-    description: 'Learn how to efficiently search and analyze blockchain data to find what you\'re looking for.',
-    icon: <RiSearch2Line className="text-4xl text-cyan-500" />,
-    animation: 'https://lottie.host/87053dcf-2667-453f-90a5-f4aefcf34602/frnQVL3IlQ.json',
-    tips: [
-      'Start with a known address and explore its transaction network',
-      'Filter by date ranges to focus on specific time periods',
-      'Use entity labels to identify exchanges and services',
-      'Look for high-value transactions or unusual patterns',
-      'Track tokens through multiple hops to find their source or destination'
-    ]
-  },
-  {
-    id: 'pro-tips',
-    title: 'Pro Tips',
-    description: 'Advanced techniques for blockchain forensic analysis from experienced investigators.',
-    icon: <RiLightbulbLine className="text-4xl text-yellow-500" />,
-    animation: 'https://lottie.host/44d46343-3272-409c-a5a4-d2f66404a801/sYABJ94y0u.json',
-    tips: [
-      'Combine multiple analysis views for a complete picture',
-      'Cross-reference with external data sources when possible',
-      'Pay attention to transaction timing and patterns',
-      'Look for wallets that serve as bridges between clusters',
-      'Monitor entity labels to identify potential mixing services',
-      'Save addresses of interest for continued monitoring'
-    ]
-  }
-];
-
 export function GuideModal({ isOpen, onClose }: GuideModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [showTips, setShowTips] = useState(false);
-
-  // Reset to first step when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentStep(0);
-      setShowTips(false);
-    }
-  }, [isOpen]);
-
-  const currentGuide = guides[currentStep];
-
+  
+  const handleClose = () => {
+    // Reset to first step when closing
+    setTimeout(() => setCurrentStep(0), 300);
+    onClose();
+  };
+  
   const nextStep = () => {
-    if (currentStep < guides.length - 1) {
+    if (currentStep < guideSteps.length - 1) {
       setCurrentStep(currentStep + 1);
-      setShowTips(false);
     } else {
-      onClose();
+      handleClose();
     }
   };
-
+  
   const prevStep = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
-      setShowTips(false);
     }
   };
-
+  
+  const currentGuide = guideSteps[currentStep];
+  
+  // Modal animation variants
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.3, ease: "easeOut" } },
+    exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2, ease: "easeIn" } }
+  };
+  
+  // Content animation variants
+  const contentVariants = {
+    hidden: { opacity: 0, x: 10 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.3, delay: 0.1 } },
+    exit: { opacity: 0, x: -10, transition: { duration: 0.2 } }
+  };
+  
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
+    <AnimatePresence>
+      {isOpen && (
+        <Dialog 
+          static 
+          as={motion.div}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/60"
+          open={isOpen} 
+          onClose={handleClose}
         >
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
-        </Transition.Child>
-
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
+          <Dialog.Overlay 
+            as={motion.div}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0"
+          />
+          
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="relative w-full max-w-2xl rounded-2xl bg-gradient-to-br from-gray-900/95 via-gray-900/98 to-gray-800/95 shadow-2xl border border-white/10 overflow-hidden"
+          >
+            {/* Decorative elements */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full bg-solana-purple/10 blur-3xl"></div>
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 rounded-full bg-solana-teal/10 blur-3xl"></div>
+            
+            {/* Progress bar */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gray-800">
+              <motion.div 
+                className="h-full bg-gradient-to-r from-solana-purple to-solana-teal"
+                initial={{ width: `${(currentStep / (guideSteps.length - 1)) * 100}%` }}
+                animate={{ width: `${(currentStep / (guideSteps.length - 1)) * 100}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            
+            {/* Close button */}
+            <button
+              onClick={handleClose}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-gray-800/50 hover:bg-gray-700/50 text-gray-400 hover:text-white transition-colors border border-white/10"
             >
-              <Dialog.Panel className="w-full max-w-3xl glass-panel overflow-hidden rounded-2xl text-left align-middle shadow-xl transition-all">
-                <div className="absolute top-3 right-3 z-10">
-                  <button
-                    type="button"
-                    className="rounded-full p-2 bg-white/10 hover:bg-white/20 dark:bg-gray-800/10 dark:hover:bg-gray-800/20 backdrop-blur-sm text-gray-500 dark:text-gray-400 transition-colors"
-                    onClick={onClose}
-                  >
-                    <RiCloseLine className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2">
-                  {/* Left side - Animation */}
-                  <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 p-6 flex flex-col items-center justify-center">
-                    <div className="w-52 h-52 mb-4">
-                      <Player
-                        autoplay
-                        loop
-                        src={currentGuide.animation}
-                      />
-                    </div>
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      key={`icon-${currentGuide.id}`}
-                      className="mt-2"
-                    >
-                      {currentGuide.icon}
-                    </motion.div>
-                  </div>
-
-                  {/* Right side - Content */}
-                  <div className="p-6">
-                    <motion.div
-                      key={`title-${currentGuide.id}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <Dialog.Title as="h3" className="text-xl font-semibold leading-6 text-gray-900 dark:text-white">
-                        {currentGuide.title}
-                      </Dialog.Title>
-                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                        {currentGuide.description}
-                      </p>
-                    </motion.div>
-
-                    {/* Tips Section */}
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        onClick={() => setShowTips(!showTips)}
-                        className="flex items-center gap-2 text-sm font-medium text-solana-purple dark:text-solana-teal hover:underline"
-                      >
-                        <RiInformationLine />
-                        <span>{showTips ? 'Hide Tips' : 'Show Tips'}</span>
-                      </button>
-
-                      <Transition
-                        show={showTips}
-                        enter="transition-all duration-300 ease-out"
-                        enterFrom="opacity-0 max-h-0"
-                        enterTo="opacity-100 max-h-96"
-                        leave="transition-all duration-200 ease-in"
-                        leaveFrom="opacity-100 max-h-96"
-                        leaveTo="opacity-0 max-h-0"
-                        className="overflow-hidden"
-                      >
-                        <motion.div 
-                          className="mt-3 bg-white/30 dark:bg-gray-800/30 rounded-lg p-3"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Tips:</h4>
-                          <ul className="space-y-2">
-                            {currentGuide.tips.map((tip, index) => (
-                              <motion.li 
-                                key={index}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.1 * index }}
-                                className="text-xs text-gray-600 dark:text-gray-300 flex gap-2 items-start"
-                              >
-                                <div className="h-4 w-4 rounded-full bg-solana-purple/20 dark:bg-solana-teal/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                  <div className="h-1.5 w-1.5 rounded-full bg-solana-purple dark:bg-solana-teal"></div>
-                                </div>
-                                <span>{tip}</span>
-                              </motion.li>
-                            ))}
-                          </ul>
-                        </motion.div>
-                      </Transition>
-                    </div>
-
-                    {/* Navigation */}
-                    <div className="mt-6 flex justify-between items-center">
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Step {currentStep + 1} of {guides.length}
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={prevStep}
-                          disabled={currentStep === 0}
-                          className={`px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm ${
-                            currentStep === 0
-                              ? 'text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
-                              : 'text-gray-700 dark:text-gray-300 bg-white/70 dark:bg-gray-800/70 hover:bg-white dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          <RiArrowLeftLine />
-                          <span>Previous</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={nextStep}
-                          className="px-4 py-1.5 bg-gradient-solana text-white rounded-lg shadow-glow-purple flex items-center gap-1 text-sm"
-                        >
-                          <span>{currentStep === guides.length - 1 ? 'Finish' : 'Next'}</span>
-                          <RiArrowRightLine />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Progress bar */}
-                <div className="h-1 w-full bg-gray-200 dark:bg-gray-700">
-                  <motion.div
-                    className="h-1 bg-gradient-solana"
-                    initial={{ width: `${(currentStep / (guides.length - 1)) * 100}%` }}
-                    animate={{ width: `${(currentStep / (guides.length - 1)) * 100}%` }}
-                    transition={{ duration: 0.3 }}
+              <RiCloseLine className="text-xl" />
+            </button>
+          
+            <div className="p-6 md:p-10 flex flex-col md:flex-row gap-6 md:gap-10">
+              {/* Left column - Animation */}
+              <div className="md:w-1/2 flex items-center justify-center">
+                <div className="w-full h-48 md:h-64">
+                  <Player
+                    autoplay
+                    loop
+                    src={currentGuide.animation}
+                    style={{ height: '100%', width: '100%' }}
                   />
                 </div>
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
-        </div>
-      </Dialog>
-    </Transition>
+              </div>
+              
+              {/* Right column - Content */}
+              <div className="md:w-1/2">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentStep}
+                    variants={contentVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="h-full flex flex-col"
+                  >
+                    <div className="mb-6 flex items-center">
+                      <div className="p-3 rounded-xl bg-gray-800/50 backdrop-blur-sm border border-white/10 mr-4">
+                        {currentGuide.icon}
+                      </div>
+                      <Dialog.Title className="text-xl font-bold text-white">
+                        {currentGuide.title}
+                      </Dialog.Title>
+                    </div>
+                    
+                    <Dialog.Description className="text-gray-300 mb-6 text-sm md:text-base flex-grow">
+                      {currentGuide.content}
+                    </Dialog.Description>
+                    
+                    {/* User tip */}
+                    <div className="mb-6 p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-3">
+                      <RiInformationLine className="text-solana-purple text-xl flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-gray-300">
+                        Tip: You can reopen this guide anytime by clicking the Help Guide button in the sidebar.
+                      </p>
+                    </div>
+                    
+                    {/* Navigation buttons */}
+                    <div className="flex justify-between">
+                      <button
+                        onClick={prevStep}
+                        disabled={currentStep === 0}
+                        className={`flex items-center gap-1 px-4 py-2 rounded-lg ${
+                          currentStep === 0 
+                            ? 'opacity-50 cursor-not-allowed bg-gray-800/50 text-gray-500' 
+                            : 'bg-gray-800/70 hover:bg-gray-700/70 text-white'
+                        } border border-white/10 transition-colors`}
+                      >
+                        <RiArrowLeftSLine className="text-lg" />
+                        <span>Back</span>
+                      </button>
+                      
+                      <button
+                        onClick={nextStep}
+                        className="flex items-center gap-1 px-6 py-2 rounded-lg bg-gradient-to-r from-solana-purple/90 to-solana-teal/90 hover:from-solana-purple hover:to-solana-teal text-white shadow-md transition-all duration-200"
+                      >
+                        <span>{currentStep === guideSteps.length - 1 ? 'Finish' : 'Next'}</span>
+                        {currentStep < guideSteps.length - 1 && <RiArrowRightSLine className="text-lg" />}
+                      </button>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+            
+            {/* Step indicators */}
+            <div className="flex justify-center gap-1.5 p-4 border-t border-white/5">
+              {guideSteps.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentStep(index)}
+                  className="p-1"
+                >
+                  <div 
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      currentStep === index 
+                        ? 'bg-gradient-to-r from-solana-purple to-solana-teal w-6' 
+                        : 'bg-gray-700'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        </Dialog>
+      )}
+    </AnimatePresence>
   );
 } 
