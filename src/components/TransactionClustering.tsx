@@ -203,8 +203,8 @@ export default function TransactionClustering() {
   const [depth, setDepth] = useState<number>(1);
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [minTransactions, setMinTransactions] = useState<number>(5);
-  const [minVolume, setMinVolume] = useState<number>(1);
+  const [minTransactions, setMinTransactions] = useState<number>(0);
+  const [minVolume, setMinVolume] = useState<number>(0);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -370,7 +370,7 @@ export default function TransactionClustering() {
                     type="number"
                     value={minTransactions}
                     onChange={(e) => setMinTransactions(Number(e.target.value))}
-                    min="1"
+                    min="0"
                     className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
                   />
                 </div>
