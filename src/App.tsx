@@ -37,7 +37,7 @@ function App() {
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                   {/* Purple orb */}
                   <motion.div 
-                    className="absolute top-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-solana-purple/5 blur-3xl"
+                    className="absolute top-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-solana-purple/5 dark:bg-solana-purple/10 blur-3xl"
                     animate={{
                       scale: [1, 1.1, 1],
                       opacity: [0.1, 0.15, 0.1],
@@ -51,7 +51,7 @@ function App() {
                   
                   {/* Teal orb */}
                   <motion.div 
-                    className="absolute bottom-[-30%] left-[-20%] w-[80vw] h-[80vw] rounded-full bg-solana-teal/5 blur-3xl"
+                    className="absolute bottom-[-30%] left-[-20%] w-[80vw] h-[80vw] rounded-full bg-solana-teal/5 dark:bg-solana-teal/10 blur-3xl"
                     animate={{
                       scale: [1, 1.2, 1],
                       opacity: [0.1, 0.13, 0.1],
@@ -69,7 +69,11 @@ function App() {
                     {Array.from({ length: 8 }).map((_, i) => (
                       <motion.div
                         key={i}
-                        className={`absolute w-1 h-1 rounded-full ${i % 2 === 0 ? 'bg-solana-purple/30' : 'bg-solana-teal/30'}`}
+                        className={`absolute w-1 h-1 rounded-full ${
+                          i % 2 === 0 
+                            ? 'bg-solana-purple/20 dark:bg-solana-purple/30' 
+                            : 'bg-solana-teal/20 dark:bg-solana-teal/30'
+                        }`}
                         style={{
                           top: `${10 + Math.random() * 80}%`,
                           left: `${Math.random() * 100}%`,
