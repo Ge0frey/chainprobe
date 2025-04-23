@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   RiBankLine, 
@@ -42,10 +42,6 @@ const pageTransition = {
   duration: 0.4,
 };
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
 const NavLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => {
   const location = useLocation();
   const isActive = location.pathname === to;
@@ -77,7 +73,7 @@ const NavLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label
   );
 };
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout() {
   const [darkMode, setDarkMode] = useState(true); // Default to dark mode
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -130,7 +126,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="space-y-1 mb-6">
               <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Dashboard</p>
               <nav className="space-y-1 relative">
-                <NavLink to="/" icon={<RiBankLine />} label="Overview" />
+                <NavLink to="/dashboard" icon={<RiBankLine />} label="Overview" />
               </nav>
             </div>
 
@@ -275,7 +271,7 @@ export default function Layout({ children }: LayoutProps) {
                 </div>
                 
                 <nav className="space-y-1 mb-6">
-                  <Link to="/" 
+                  <Link to="/dashboard" 
                     className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
                     onClick={toggleMobileMenu}
                   >
@@ -365,7 +361,7 @@ export default function Layout({ children }: LayoutProps) {
               transition={pageTransition}
               className="p-6 md:p-10 h-full"
             >
-              {children}
+              <Outlet />
             </motion.div>
           </AnimatePresence>
         </main>
