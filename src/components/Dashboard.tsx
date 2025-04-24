@@ -26,6 +26,11 @@ import { SiSolana } from 'react-icons/si';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { FeaturesSection } from './ui/FeaturesSection';
 
+// Import API keys from environment variables
+const HELIUS_API_KEY = import.meta.env.VITE_HELIUS_API_KEY;
+// For Solana Beach API key, you should add this to your .env file
+const SOLANA_BEACH_API_KEY = import.meta.env.VITE_SOLANA_BEACH_API_KEY || '';
+
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -76,34 +81,29 @@ export default function Dashboard() {
     const fetchSolanaStats = async () => {
       setStatsLoading(true);
       try {
+        // Define common headers for Solana Beach API
+        const solanaBeachHeaders = {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${SOLANA_BEACH_API_KEY}`
+        };
+
         // Fetch supply data from Solana Beach API
         const supplyResponse = await axios.get('https://api.solanabeach.io/v1/supply', {
-          headers: {
-            'Accept': 'application/json',
-            // Note: In a production environment, you would use an environment variable for API keys
-            // This is a placeholder and would need to be replaced with a valid API key
-            'Authorization': 'Bearer YOUR_SOLANA_BEACH_API_KEY'
-          }
+          headers: solanaBeachHeaders
         });
 
         // Fetch inflation data from Solana Beach API
         const inflationResponse = await axios.get('https://api.solanabeach.io/v1/inflation', {
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': 'Bearer YOUR_SOLANA_BEACH_API_KEY'
-          }
+          headers: solanaBeachHeaders
         });
 
         // Fetch network health from Solana Beach API
         const healthResponse = await axios.get('https://api.solanabeach.io/v1/health', {
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': 'Bearer YOUR_SOLANA_BEACH_API_KEY'
-          }
+          headers: solanaBeachHeaders
         });
 
-        // Fetch from Helius API (demo key, replace with your own)
-        const heliusResponse = await axios.get('https://api.helius.xyz/v0/blocks/latest?api-key=YOUR_HELIUS_API_KEY');
+        // Fetch from Helius API using the imported API key
+        const heliusResponse = await axios.get(`https://api.helius.xyz/v0/blocks/latest?api-key=${HELIUS_API_KEY}`);
 
         // Parse and organize the data
         // Note: In a real implementation, you would add proper type checking and error handling
