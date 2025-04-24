@@ -118,7 +118,7 @@ export default function Layout() {
                 <SiSolana className="text-xl text-white" />
               </div>
               <div>
-                <h1 className="font-bold text-xl text-gray-900 dark:text-white leading-none">Solana</h1>
+                <h1 className="font-bold text-xl text-gray-900 dark:text-white leading-none">ChainProbe</h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Forensic Analysis</p>
               </div>
             </Link>
