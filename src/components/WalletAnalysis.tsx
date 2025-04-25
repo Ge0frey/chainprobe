@@ -18,6 +18,9 @@ import { Line, Doughnut, Bar } from 'react-chartjs-2';
 import { getEnhancedWalletActivity } from '../services/solana';
 import { Spinner } from './ui/Spinner';
 import { format } from 'date-fns';
+import { motion } from 'framer-motion';
+import { RiAlertLine } from 'react-icons/ri';
+import { Player } from '@lottiefiles/react-lottie-player';
 
 ChartJS.register(
   CategoryScale,
@@ -39,7 +42,8 @@ export default function WalletAnalysis() {
   // Fetch enhanced wallet activity data
   const { 
     data: activity, 
-    isLoading 
+    isLoading,
+    error: queryError
   } = useQuery({
     queryKey: ['enhanced-wallet-activity', currentAddress],
     queryFn: () => currentAddress ? getEnhancedWalletActivity(currentAddress) : null,
@@ -54,19 +58,6 @@ export default function WalletAnalysis() {
   };
 
   // Prepare chart data
-  const volumeChartData = activity ? {
-    labels: ['Incoming', 'Outgoing'],
-    datasets: [
-      {
-        data: [activity.volumeStats.incoming, activity.volumeStats.outgoing],
-        backgroundColor: ['rgba(75, 192, 192, 0.7)', 'rgba(255, 99, 132, 0.7)'],
-        borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)'],
-        borderWidth: 1,
-      },
-    ],
-  } : null;
-
-  // Activity patterns chart data
   const activityPatternsData = activity?.activityPatterns ? {
     labels: activity.activityPatterns.hourlyDistribution.map(h => `${h.hour}:00`),
     datasets: [
@@ -80,185 +71,103 @@ export default function WalletAnalysis() {
     ],
   } : null;
 
-  // Entity connections chart
-  const entityConnectionsData = activity?.entityConnections ? {
-    labels: activity.entityConnections.slice(0, 10).map(e => e.label || e.address.slice(0, 8)),
-    datasets: [
-      {
-        label: 'Transaction Volume',
-        data: activity.entityConnections.slice(0, 10).map(e => e.totalVolume),
-        backgroundColor: activity.entityConnections.slice(0, 10).map(e => 
-          e.riskScore > 0.7 ? 'rgba(255, 99, 132, 0.7)' :
-          e.riskScore > 0.4 ? 'rgba(255, 206, 86, 0.7)' :
-          'rgba(75, 192, 192, 0.7)'
-        ),
-        borderColor: activity.entityConnections.slice(0, 10).map(e => 
-          e.riskScore > 0.7 ? 'rgba(255, 99, 132, 1)' :
-          e.riskScore > 0.4 ? 'rgba(255, 206, 86, 1)' :
-          'rgba(75, 192, 192, 1)'
-        ),
-        borderWidth: 1,
-      },
-    ],
-  } : null;
-
   return (
-    <div className="space-y-6">
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:text-3xl sm:tracking-tight">
-            Enhanced Wallet Analysis
-          </h2>
+    <div className="min-h-screen p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-solana-purple to-solana-teal bg-clip-text text-transparent">
+            Wallet Analysis
+          </h1>
+          <p className="text-muted-foreground">
+            Deep dive into wallet behavior and transaction patterns
+          </p>
         </div>
-      </div>
 
-      {/* Search Form */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <form onSubmit={handleSearch} className="flex space-x-4">
-          <div className="flex-1">
-            <label htmlFor="wallet-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Wallet Address
-            </label>
-            <div className="mt-1">
-              <input
-                type="text"
-                id="wallet-address"
-                value={searchAddress}
-                onChange={(e) => setSearchAddress(e.target.value)}
-                placeholder="Enter Solana wallet address"
-                className="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-          </div>
-          <div className="flex items-end">
+        {/* Search Form */}
+        <form onSubmit={handleSearch} className="mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            <input
+              type="text"
+              value={searchAddress}
+              onChange={(e) => setSearchAddress(e.target.value)}
+              placeholder="Enter wallet address to analyze"
+              className="flex-1 glass-input"
+            />
             <button
               type="submit"
-              className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              className="px-6 py-3 bg-gradient-to-r from-solana-purple to-solana-teal text-white rounded-lg font-semibold hover:shadow-glow transition-all"
             >
               Analyze
             </button>
           </div>
         </form>
-      </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Spinner />
-          <p className="ml-3 text-gray-500 dark:text-gray-400">Analyzing wallet...</p>
-        </div>
-      ) : activity ? (
-        <>
-          {/* Risk Assessment */}
-          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Risk Assessment</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Overall Risk Score</span>
-                  <span className={`text-lg font-semibold ${
-                    activity.riskAssessment.overallScore > 0.7 ? 'text-red-500' :
-                    activity.riskAssessment.overallScore > 0.4 ? 'text-yellow-500' :
-                    'text-green-500'
-                  }`}>
-                    {(activity.riskAssessment.overallScore * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                  <div 
-                    className={`h-2.5 rounded-full ${
-                      activity.riskAssessment.overallScore > 0.7 ? 'bg-red-500' :
-                      activity.riskAssessment.overallScore > 0.4 ? 'bg-yellow-500' :
-                      'bg-green-500'
-                    }`}
-                    style={{ width: `${activity.riskAssessment.overallScore * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {activity.riskAssessment.factors.map((factor, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">{factor.factor}</span>
-                    <span className={`text-sm font-medium ${
-                      factor.score > 0.7 ? 'text-red-500' :
-                      factor.score > 0.4 ? 'text-yellow-500' :
-                      'text-green-500'
-                    }`}>
-                      {(factor.score * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex justify-center items-center py-20">
+            <Spinner />
+            <span className="ml-3 text-gray-600 dark:text-gray-400">Analyzing wallet activity...</span>
           </div>
+        )}
 
-          {/* Funding History */}
-          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Funding History</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Funding</h4>
-                  <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
-                    {activity.fundingHistory.totalAmount.toFixed(2)} SOL
-                  </p>
-                </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Primary Sources</h4>
-                  <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
-                    {activity.fundingHistory.primarySources.length}
-                  </p>
-                </div>
-                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400">Initial Funding</h4>
-                  <p className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">
-                    {activity.fundingHistory.transactions[0]?.amount.toFixed(2)} SOL
-                  </p>
-                </div>
-              </div>
-
-              {/* Primary Sources Table */}
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Primary Funding Sources</h4>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Source</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Percentage</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {activity.fundingHistory.primarySources.map((source, index) => (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                            {source.label || source.address.slice(0, 8) + '...'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {source.amount.toFixed(2)} SOL
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {source.percentage.toFixed(1)}%
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {source.type || 'Unknown'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+        {/* Error State */}
+        {queryError && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-red-600 mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center gap-3"
+          >
+            <div className="bg-red-100 dark:bg-red-800/30 p-2 rounded-full">
+              <RiAlertLine className="text-red-600 dark:text-red-400 text-xl" />
             </div>
-          </div>
+            <div>
+              <h3 className="font-medium text-red-800 dark:text-red-300">Error</h3>
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {queryError instanceof Error ? queryError.message : 'An error occurred'}
+              </p>
+            </div>
+          </motion.div>
+        )}
 
-          {/* Activity Patterns */}
+        {/* Analysis Results */}
+        {!isLoading && !queryError && activity && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Activity Distribution</h3>
-              {activityPatternsData && (
-                <div className="h-64">
+            {/* Wallet Overview */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-panel rounded-xl p-6"
+            >
+              <h2 className="text-lg font-semibold mb-4">Wallet Overview</h2>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Balance</span>
+                  <span className="font-medium">{activity.balance?.toFixed(2) ?? '0.00'} SOL</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Transaction Count</span>
+                  <span className="font-medium">{activity.transactionCount ?? 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">First Activity</span>
+                  <span className="font-medium">{activity.firstActivity ? format(new Date(activity.firstActivity), 'PPp') : 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Last Activity</span>
+                  <span className="font-medium">{activity.lastActivity ? format(new Date(activity.lastActivity), 'PPp') : 'N/A'}</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Activity Chart */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-panel rounded-xl p-6"
+            >
+              <h2 className="text-lg font-semibold mb-4">Activity Over Time</h2>
+              <div className="h-[300px]">
+                {activityPatternsData ? (
                   <Bar
                     data={activityPatternsData}
                     options={{
@@ -280,132 +189,100 @@ export default function WalletAnalysis() {
                       }
                     }}
                   />
-                </div>
-              )}
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Activity Patterns</h4>
-                <div className="space-y-2">
-                  {activity.activityPatterns.commonPatterns.map((pattern, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">{pattern.pattern}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{pattern.description}</p>
-                      </div>
-                      <span className={`text-sm font-medium px-2 py-1 rounded ${
-                        pattern.riskScore > 0.7 ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' :
-                        pattern.riskScore > 0.4 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100' :
-                        'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'
-                      }`}>
-                        Risk: {(pattern.riskScore * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    No activity data available
+                  </div>
+                )}
               </div>
-            </div>
+            </motion.div>
 
-            {/* Entity Connections */}
-            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Entity Connections</h3>
-              {entityConnectionsData && (
-                <div className="h-64">
-                  <Bar
-                    data={entityConnectionsData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          display: false,
-                        },
-                        title: {
-                          display: true,
-                          text: 'Top Entity Interactions by Volume'
-                        }
-                      },
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                        }
-                      }
-                    }}
-                  />
-                </div>
-              )}
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Top Connections</h4>
-                <div className="space-y-2">
-                  {activity.entityConnections.slice(0, 5).map((connection, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {connection.label || connection.address.slice(0, 8) + '...'}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {connection.type || 'Unknown'} • {connection.totalTransactions} transactions
-                        </p>
+            {/* Token Holdings */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-panel rounded-xl p-6"
+            >
+              <h2 className="text-lg font-semibold mb-4">Token Holdings</h2>
+              <div className="space-y-4">
+                {activity.tokens?.length > 0 ? (
+                  activity.tokens.map(token => (
+                    <div key={token.mint} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={token.icon} alt={token.name} className="w-8 h-8 rounded-full" />
+                        <div>
+                          <p className="font-medium">{token.name}</p>
+                          <p className="text-sm text-muted-foreground">{token.symbol}</p>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {connection.totalVolume.toFixed(2)} SOL
-                        </p>
-                        <p className={`text-xs ${
-                          connection.direction === 'bidirectional' ? 'text-purple-500' :
-                          connection.direction === 'incoming' ? 'text-green-500' :
-                          'text-red-500'
-                        }`}>
-                          {connection.direction}
-                        </p>
+                        <p className="font-medium">{token.balance?.toFixed(2) ?? '0.00'} SOL</p>
+                        <p className="text-sm text-muted-foreground">${token.value?.toFixed(2) ?? '0.00'}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground">
+                    No token holdings found
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
+            </motion.div>
 
-          {/* Burst Activity */}
-          {activity.activityPatterns.burstActivity.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Burst Activity Detection</h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Time</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Duration</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transactions</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Value</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {activity.activityPatterns.burstActivity.map((burst, index) => (
-                      <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {format(new Date(burst.timestamp), 'PPp')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {burst.duration.toFixed(1)} min
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {burst.transactionCount}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {burst.totalValue.toFixed(2)} SOL
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Recent Transactions */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-panel rounded-xl p-6"
+            >
+              <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
+              <div className="space-y-4">
+                {activity.recentTransactions?.length > 0 ? (
+                  activity.recentTransactions.map(tx => (
+                    <div key={tx.signature} className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{tx.type}</p>
+                        <p className="text-sm text-muted-foreground">{format(new Date(tx.timestamp), 'PPp')}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-medium ${tx.amount > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {tx.amount > 0 ? '+' : ''}{tx.amount?.toFixed(2) ?? '0.00'} SOL
+                        </p>
+                        <a
+                          href={`https://solscan.io/tx/${tx.signature}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-solana-purple hover:text-solana-teal transition-colors"
+                        >
+                          View on Solscan
+                        </a>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground">
+                    No recent transactions found
+                  </div>
+                )}
               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !queryError && !activity && (
+          <div className="text-center py-10">
+            <div className="w-32 h-32 mx-auto">
+              <Player
+                autoplay
+                loop
+                src="https://assets9.lottiefiles.com/packages/lf20_rbtawnwz.json"
+              />
             </div>
-          )}
-        </>
-      ) : currentAddress && !isLoading ? (
-        <div className="text-center text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-          No data found for this address
-        </div>
-      ) : null}
+            <p className="text-gray-600 dark:text-gray-400">Enter a wallet address to view analysis</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 } 
