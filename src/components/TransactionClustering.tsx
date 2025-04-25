@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ReactFlow, {
   Node,
@@ -200,98 +200,92 @@ const getSuspicionLevel = (score: number) => {
 export default function TransactionClustering() {
   const [searchAddress, setSearchAddress] = useState('');
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
-  const [depth, setDepth] = useState<number>(1);
+  const [selectedDepth, setSelectedDepth] = useState('basic');
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [minTransactions, setMinTransactions] = useState<number>(0);
-  const [minVolume, setMinVolume] = useState<number>(0);
+  
+  // Replace useState with useNodesState and useEdgesState
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Fetch clustered transactions
+  // Query for fetching cluster data
   const { 
     data: clusters, 
-    isLoading: clustersLoading 
-  } = useQuery<TransactionCluster[]>({
-    queryKey: ['transaction-clusters', currentAddress, depth],
-    queryFn: async () => {
-      if (!currentAddress) return [];
-      return await clusterTransactions(currentAddress, depth);
-    },
-    enabled: !!currentAddress,
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ['transaction-clusters', currentAddress, selectedDepth],
+    queryFn: () => currentAddress ? clusterTransactions(
+      currentAddress, 
+      selectedDepth === 'advanced' ? 3 : selectedDepth === 'medium' ? 2 : 1
+    ) : null,
+    enabled: !!currentAddress
   });
 
   // Transform clusters into nodes and edges for visualization
-  useMemo(() => {
+  useEffect(() => {
     if (!clusters) return;
 
-    const filteredClusters = clusters.filter(cluster => 
-      cluster.transactions >= minTransactions &&
-      cluster.volume >= minVolume
-    );
-
-    const nodes = filteredClusters.map((cluster, index) => ({
+    const newNodes = clusters.map((cluster, index) => ({
       id: cluster.id,
-      type: 'cluster',
+      type: 'default',
       position: {
-        x: Math.cos(index * (2 * Math.PI / filteredClusters.length)) * 300,
-        y: Math.sin(index * (2 * Math.PI / filteredClusters.length)) * 300
+        x: Math.cos(index * (2 * Math.PI / clusters.length)) * 300,
+        y: Math.sin(index * (2 * Math.PI / clusters.length)) * 300
       },
       data: {
-        label: cluster.label,
+        label: `Cluster ${index + 1}`,
         addresses: cluster.addresses,
-        isSuspicious: cluster.suspiciousScore > 0.7,
-        isHighVolume: cluster.volume > 100,
-        stats: {
-          volume: cluster.volume,
-          transactions: cluster.transactions
-        }
+        transactions: cluster.transactions,
+        volume: cluster.volume,
+        suspiciousScore: cluster.suspiciousScore
       }
     }));
 
-    const edges = filteredClusters.flatMap(cluster => 
-      cluster.relatedClusters
-        .filter(related => related.strength > 0.1)
-        .map(related => ({
-          id: `${cluster.id}-${related.id}`,
-          source: cluster.id,
-          target: related.id,
-          animated: related.strength > 0.5,
-          style: {
-            stroke: related.strength > 0.5 ? '#f59e0b' : '#94a3b8',
-            strokeWidth: related.strength * 3
-          }
-        }))
+    const newEdges = clusters.flatMap(cluster => 
+      cluster.relatedClusters.map(related => ({
+        id: `${cluster.id}-${related.id}`,
+        source: cluster.id,
+        target: related.id,
+        animated: related.strength > 0.5,
+        style: {
+          stroke: related.strength > 0.5 ? '#9945FF' : '#14F195',
+          strokeWidth: related.strength * 3
+        }
+      }))
     );
 
-    setNodes(nodes);
-    setEdges(edges);
-  }, [clusters, minTransactions, minVolume]);
+    setNodes(newNodes);
+    setEdges(newEdges);
+  }, [clusters, setNodes, setEdges]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchAddress) {
       setCurrentAddress(searchAddress);
-      setSelectedCluster(null);
+      setSelectedCluster(null); // Reset selected cluster when searching new address
     }
   };
 
   const handleDepthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setDepth(Number(e.target.value));
+    setSelectedDepth(e.target.value);
   };
 
   const handleClusterClick = (clusterId: string) => {
-    setSelectedCluster(clusterId === selectedCluster ? null : clusterId);
+    setSelectedCluster(clusterId);
   };
 
-  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    setSelectedCluster(node.id);
-  }, []);
+  // Get selected cluster details
+  const selectedClusterDetails = useMemo(() => {
+    if (!selectedCluster || !clusters) return null;
+    return clusters.find(cluster => cluster.id === selectedCluster);
+  }, [selectedCluster, clusters]);
 
-  // Get details for a selected cluster
-  const selectedClusterData = selectedCluster && clusters 
-    ? clusters.find((c: TransactionCluster) => c.id === selectedCluster) 
-    : null;
+  // Function to get badge color based on risk score
+  const getRiskBadgeColor = (score: number) => {
+    if (score >= 0.7) return 'bg-red-500/20 text-red-500 border-red-500/20';
+    if (score >= 0.4) return 'bg-yellow-500/20 text-yellow-500 border-yellow-500/20';
+    return 'bg-green-500/20 text-green-500 border-green-500/20';
+  };
 
   return (
     <div className="min-h-screen p-6">
@@ -301,104 +295,137 @@ export default function TransactionClustering() {
             Transaction Clustering
           </h1>
           <p className="text-muted-foreground">
-            Analyze transaction patterns and identify related clusters
+            Analyze transaction patterns and identify related address clusters
           </p>
         </div>
 
         {/* Search Form */}
-        <div className="glass-panel rounded-xl p-6 mb-8">
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-3">
-                <input
-                  type="text"
-                  value={searchAddress}
-                  onChange={(e) => setSearchAddress(e.target.value)}
-                  placeholder="Enter wallet address to analyze"
-                  className="glass-input"
-                />
-              </div>
-              <div>
-                <select
-                  value={depth}
-                  onChange={handleDepthChange}
-                  className="glass-input"
-                >
-                  <option value="1">Depth: 1</option>
-                  <option value="2">Depth: 2</option>
-                  <option value="3">Depth: 3</option>
-                </select>
-              </div>
-            </div>
+        <form onSubmit={handleSearch} className="mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            <input
+              type="text"
+              value={searchAddress}
+              onChange={(e) => setSearchAddress(e.target.value)}
+              placeholder="Enter wallet address to analyze"
+              className="flex-1 glass-input"
+            />
+            <select
+              value={selectedDepth}
+              onChange={handleDepthChange}
+              className="glass-input md:w-48"
+            >
+              <option value="basic">Basic Analysis</option>
+              <option value="medium">Medium Analysis</option>
+              <option value="advanced">Advanced Analysis</option>
+            </select>
             <button
               type="submit"
-              className="w-full px-6 py-3 bg-gradient-to-r from-solana-purple to-solana-teal text-white rounded-lg font-semibold hover:shadow-glow transition-all"
+              className="px-6 py-3 bg-gradient-to-r from-solana-purple to-solana-teal text-white rounded-lg font-semibold hover:shadow-glow transition-all"
             >
               Analyze Clusters
             </button>
-          </form>
-        </div>
-
-        {/* Loading State */}
-        {clustersLoading && (
-          <div className="flex justify-center items-center py-20">
-            <Spinner />
-            <span className="ml-3 text-gray-600 dark:text-gray-400">Analyzing transaction clusters...</span>
           </div>
-        )}
+        </form>
 
-        {/* Results */}
-        {!clustersLoading && clusters && clusters.length > 0 && (
+        {/* Results Section */}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <Spinner />
+          </div>
+        ) : error ? (
+          <div className="text-red-500 p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
+            Error: {error instanceof Error ? error.message : 'An error occurred'}
+          </div>
+        ) : clusters && clusters.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Cluster List */}
-            <div className="glass-panel rounded-xl p-6">
-              <h2 className="text-lg font-semibold mb-4">Identified Clusters</h2>
-              <div className="space-y-3">
-                {clusters.map((cluster) => (
-                  <button
-                    key={cluster.id}
-                    onClick={() => handleClusterClick(cluster.id)}
-                    className={`w-full p-4 rounded-lg transition-all ${
-                      selectedCluster === cluster.id
-                        ? 'bg-gradient-to-r from-solana-purple/20 to-solana-teal/20 border border-solana-purple/30'
-                        : 'hover:bg-white/5 border border-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{cluster.label}</span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${getSuspicionLevel(cluster.suspiciousScore)}`}>
-                        Risk: {(cluster.suspiciousScore * 100).toFixed(0)}%
-                      </span>
-                    </div>
-                    <div className="mt-2 text-sm text-muted-foreground">
-                      {cluster.addresses.length} addresses • {cluster.transactions} transactions
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Cluster Visualization */}
-            <div className="lg:col-span-2 glass-panel rounded-xl p-6">
-              <div className="h-[600px] relative">
+            {/* Flow Visualization */}
+            <div className="lg:col-span-2 glass-panel p-6">
+              <ReactFlowProvider>
                 <ClusterVisualization
                   nodes={nodes}
                   edges={edges}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
-                  onNodeClick={handleNodeClick}
+                  onNodeClick={(_, node) => handleClusterClick(node.id)}
                 />
-              </div>
+              </ReactFlowProvider>
+            </div>
+
+            {/* Cluster Details */}
+            <div className="lg:col-span-1">
+              {selectedClusterDetails ? (
+                <div className="glass-panel p-6">
+                  <h2 className="text-xl font-semibold mb-4">Cluster Details</h2>
+                  
+                  {/* Risk Score */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">Risk Score</span>
+                      <span className={`px-2 py-1 rounded-full text-sm border ${getRiskBadgeColor(selectedClusterDetails.suspiciousScore)}`}>
+                        {(selectedClusterDetails.suspiciousScore * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-solana-purple to-solana-teal transition-all duration-300"
+                        style={{ width: `${selectedClusterDetails.suspiciousScore * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Cluster Stats */}
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Cluster Size</h3>
+                      <p className="text-lg font-semibold">{selectedClusterDetails.addresses.length} addresses</p>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Transaction Volume</h3>
+                      <p className="text-lg font-semibold">{selectedClusterDetails.transactions} transactions</p>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Total Volume</h3>
+                      <p className="text-lg font-semibold">{selectedClusterDetails.volume.toFixed(2)} SOL</p>
+                    </div>
+
+                    {/* Related Clusters */}
+                    {selectedClusterDetails.relatedClusters.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Related Clusters</h3>
+                        <div className="space-y-2">
+                          {selectedClusterDetails.relatedClusters.map(related => (
+                            <div 
+                              key={related.id}
+                              className="flex items-center justify-between p-2 rounded-lg bg-card/50"
+                            >
+                              <span className="text-sm">Cluster #{related.id}</span>
+                              <span className="text-sm text-muted-foreground">
+                                {(related.strength * 100).toFixed(0)}% strength
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="glass-panel p-6 text-center">
+                  <RiGroupLine className="text-4xl text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">Select a cluster to view details</p>
+                </div>
+              )}
             </div>
           </div>
-        )}
-
-        {/* Empty State */}
-        {!clustersLoading && (!clusters || clusters.length === 0) && (
+        ) : (
           <div className="text-center py-10">
             <div className="glass-panel rounded-xl p-8">
               <RiGroupLine className="text-solana-purple/50 text-6xl mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">Enter a wallet address to analyze transaction clusters</p>
+              <p className="text-gray-600 dark:text-gray-400">
+                Enter a wallet address to analyze transaction clusters
+              </p>
             </div>
           </div>
         )}
