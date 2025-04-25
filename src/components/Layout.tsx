@@ -14,7 +14,10 @@ import {
   RiQuestionLine,
   RiRadarLine,
   RiSearchLine,
-  RiSettings4Line
+  RiSettings4Line,
+  RiDashboardLine,
+  RiShieldCheckLine,
+  RiExchangeLine
 } from 'react-icons/ri';
 import { SiSolana } from 'react-icons/si';
 import { GuideModal } from './ui/GuideModal';
@@ -74,33 +77,34 @@ const NavLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label
 };
 
 export default function Layout() {
-  const [darkMode, setDarkMode] = useState(true); // Default to dark mode
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const location = useLocation();
-  const { isOpen, onClose, openGuide } = useGuideModal();
+  const { isOpen: isGuideOpen, onClose: onGuideClose, openGuide } = useGuideModal();
 
   // Handle dark mode
   useEffect(() => {
-    if (darkMode) {
+    if (isDarkMode) {
       document.documentElement.classList.add('dark');
       document.documentElement.classList.remove('light');
     } else {
       document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
     }
-  }, [darkMode]);
+  }, [isDarkMode]);
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
+    setIsDarkMode(!isDarkMode);
+    document.documentElement.classList.toggle('dark');
   };
 
   const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   const toggleSearch = () => {
-    setSearchOpen(!searchOpen);
+    setIsSearchOpen(!isSearchOpen);
   };
 
   return (
@@ -111,62 +115,38 @@ export default function Layout() {
       {/* Main container */}
       <div className="flex flex-1">
         {/* Sidebar - Desktop */}
-        <aside className="hidden md:flex flex-col w-72 backdrop-blur-md bg-white/80 dark:bg-black/20 border-r border-gray-200/50 dark:border-white/5 overflow-y-auto">
-          <div className="p-6">
-            <Link to="/" className="flex items-center gap-3 mb-10">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-solana-purple to-solana-teal">
-                <SiSolana className="text-xl text-white" />
-              </div>
-              <div>
-                <h1 className="font-bold text-xl text-gray-900 dark:text-white leading-none">ChainProbe</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Forensic Analysis</p>
-              </div>
-            </Link>
-          
-            <div className="space-y-1 mb-6">
-              <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Dashboard</p>
-              <nav className="space-y-1 relative">
-                <NavLink to="/dashboard" icon={<RiBankLine />} label="Overview" />
-              </nav>
+        <aside className={`fixed top-0 left-0 z-40 w-64 h-screen transition-transform ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0`}>
+          <div className="h-full px-3 py-4 overflow-y-auto bg-card/50 backdrop-blur-md border-r border-border">
+            {/* Logo */}
+            <div className="flex items-center gap-2 px-4 mb-8">
+              <SiSolana className="text-2xl text-solana-purple" />
+              <span className="text-xl font-bold">ChainProbe</span>
             </div>
 
-            <div className="space-y-1 mb-6">
-              <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Analysis Tools</p>
-              <nav className="space-y-1 relative">
-                <NavLink to="/transaction-flow" icon={<RiFlowChart />} label="Transaction Flow" />
-                <NavLink to="/wallet-analysis" icon={<RiWalletLine />} label="Wallet Analysis" />
-                <NavLink to="/entity-labels" icon={<RiUserSearchLine />} label="Entity Labels" />
-                <NavLink to="/transaction-clustering" icon={<RiGroupLine />} label="Clustering" />
-                <NavLink to="/pattern-analysis" icon={<RiRadarLine />} label="Pattern Analysis" />
-              </nav>
+            {/* Navigation */}
+            <div className="space-y-8">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Dashboard</p>
+                <nav className="space-y-1 relative">
+                  <NavLink to="/dashboard" icon={<RiDashboardLine />} label="Overview" />
+                </nav>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Analysis Tools</p>
+                <nav className="space-y-1 relative">
+                  <NavLink to="/transaction-flow" icon={<RiFlowChart />} label="Transaction Flow" />
+                  <NavLink to="/wallet-analysis" icon={<RiWalletLine />} label="Wallet Analysis" />
+                  <NavLink to="/entity-labels" icon={<RiUserSearchLine />} label="Entity Labels" />
+                  <NavLink to="/transaction-clustering" icon={<RiGroupLine />} label="Clustering" />
+                  <NavLink to="/pattern-analysis" icon={<RiRadarLine />} label="Pattern Analysis" />
+                  <NavLink to="/smart-contract-scanner" icon={<RiShieldCheckLine />} label="Contract Scanner" />
+                  <NavLink to="/bridge-monitor" icon={<RiExchangeLine />} label="Bridge Monitor" />
+                </nav>
+              </div>
             </div>
-          </div>
-          
-          <div className="mt-auto p-6 space-y-3">
-            <button 
-              onClick={openGuide} 
-              className="flex items-center gap-2 px-4 py-3 w-full rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 transition-all duration-200"
-            >
-              <RiQuestionLine className="text-xl text-solana-teal" />
-              <span>Help Guide</span>
-            </button>
-            
-            <button 
-              onClick={toggleDarkMode} 
-              className="flex items-center gap-2 px-4 py-3 w-full rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 transition-all duration-200"
-            >
-              {!darkMode ? (
-                <>
-                  <RiMoonLine className="text-xl text-solana-purple" />
-                  <span>Dark Mode</span>
-                </>
-              ) : (
-                <>
-                  <RiSunLine className="text-xl text-amber-400" />
-                  <span>Light Mode</span>
-                </>
-              )}
-            </button>
           </div>
         </aside>
         
@@ -198,10 +178,10 @@ export default function Layout() {
               onClick={toggleDarkMode}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
             >
-              {!darkMode ? (
-                <RiMoonLine className="text-xl text-solana-purple" />
-              ) : (
+              {!isDarkMode ? (
                 <RiSunLine className="text-xl text-amber-400" />
+              ) : (
+                <RiMoonLine className="text-xl text-solana-purple" />
               )}
             </button>
             
@@ -209,7 +189,7 @@ export default function Layout() {
               onClick={toggleMobileMenu}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
             >
-              {mobileMenuOpen ? (
+              {isMobileMenuOpen ? (
                 <RiCloseLine className="text-xl text-gray-900 dark:text-white" />
               ) : (
                 <RiMenuLine className="text-xl text-gray-900 dark:text-white" />
@@ -220,13 +200,13 @@ export default function Layout() {
 
         {/* Global search overlay */}
         <AnimatePresence>
-          {searchOpen && (
+          {isSearchOpen && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               className="fixed inset-0 bg-background/60 backdrop-blur-md z-50 flex items-start justify-center pt-20"
-              onClick={() => setSearchOpen(false)}
+              onClick={() => setIsSearchOpen(false)}
             >
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -251,7 +231,7 @@ export default function Layout() {
         
         {/* Mobile navigation menu */}
         <AnimatePresence>
-          {mobileMenuOpen && (
+          {isMobileMenuOpen && (
             <motion.div
               initial={{ opacity: 0, x: '100%' }}
               animate={{ opacity: 1, x: 0 }}
@@ -275,8 +255,8 @@ export default function Layout() {
                     className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
                     onClick={toggleMobileMenu}
                   >
-                    <RiBankLine className="text-xl" />
-                    <span>Overview</span>
+                    <RiDashboardLine className="text-xl" />
+                    <span>Dashboard</span>
                   </Link>
                   <Link to="/transaction-flow"
                     className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
@@ -313,6 +293,20 @@ export default function Layout() {
                     <RiRadarLine className="text-xl" />
                     <span>Pattern Analysis</span>
                   </Link>
+                  <Link to="/smart-contract-scanner"
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
+                    onClick={toggleMobileMenu}
+                  >
+                    <RiShieldCheckLine className="text-xl" />
+                    <span>Contract Scanner</span>
+                  </Link>
+                  <Link to="/bridge-monitor"
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
+                    onClick={toggleMobileMenu}
+                  >
+                    <RiExchangeLine className="text-xl" />
+                    <span>Bridge Monitor</span>
+                  </Link>
                 </nav>
                 
                 <div className="mt-auto flex flex-col gap-2">
@@ -331,15 +325,15 @@ export default function Layout() {
                     onClick={toggleDarkMode}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
                   >
-                    {!darkMode ? (
-                      <>
-                        <RiMoonLine className="text-xl text-solana-purple" />
-                        <span>Dark Mode</span>
-                      </>
-                    ) : (
+                    {!isDarkMode ? (
                       <>
                         <RiSunLine className="text-xl text-amber-400" />
                         <span>Light Mode</span>
+                      </>
+                    ) : (
+                      <>
+                        <RiMoonLine className="text-xl text-solana-purple" />
+                        <span>Dark Mode</span>
                       </>
                     )}
                   </button>
@@ -368,7 +362,7 @@ export default function Layout() {
       </div>
       
       {/* Guide Modal */}
-      <GuideModal isOpen={isOpen} onClose={onClose} />
+      <GuideModal isOpen={isGuideOpen} onClose={onGuideClose} />
     </div>
   );
 } 
