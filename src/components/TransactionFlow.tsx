@@ -32,6 +32,7 @@ import {
   RiZoomInLine,
   RiZoomOutLine,
   RiFullscreenLine,
+  RiFlowChart,
 } from 'react-icons/ri';
 import { Player } from '@lottiefiles/react-lottie-player';
 
@@ -529,14 +530,10 @@ export default function TransactionFlow() {
         {/* Empty State */}
         {!txLoading && !txError && !transactions && (
           <div className="text-center py-10">
-            <div className="w-32 h-32 mx-auto">
-              <Player
-                autoplay
-                loop
-                src="https://lottie.host/1b6611dd-9482-489e-8511-ac74fab3bf5a/0r0MBEZLw3.json"
-              />
+            <div className="glass-panel rounded-xl p-8">
+              <RiFlowChart className="text-solana-purple/50 text-6xl mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">Enter a wallet address to visualize transaction flow</p>
             </div>
-            <p className="text-gray-600 dark:text-gray-400">Enter a wallet address to visualize transaction flow</p>
           </div>
         )}
       </div>

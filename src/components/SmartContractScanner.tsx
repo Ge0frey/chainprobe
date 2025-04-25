@@ -106,7 +106,7 @@ export default function SmartContractScanner() {
           <div className="flex justify-center items-center h-64">
             <Spinner />
           </div>
-        ) : (
+        ) : contractRisks.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Contract List */}
             <div className="lg:col-span-1">
@@ -226,6 +226,13 @@ export default function SmartContractScanner() {
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-10">
+            <div className="glass-panel rounded-xl p-8">
+              <RiShieldCheckLine className="text-solana-purple/50 text-6xl mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">Enter a wallet address or contract ID to scan for vulnerabilities</p>
             </div>
           </div>
         )}

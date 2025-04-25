@@ -368,7 +368,18 @@ export default function PatternAnalysis() {
             </div>
           </motion.div>
         </div>
-      ) : null}
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-10"
+        >
+          <div className="glass-panel rounded-xl p-8">
+            <RiRadarLine className="text-solana-purple/50 text-6xl mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">Enter a wallet address to analyze transaction patterns</p>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 } 

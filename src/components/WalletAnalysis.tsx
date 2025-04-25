@@ -19,7 +19,7 @@ import { getEnhancedWalletActivity } from '../services/solana';
 import { Spinner } from './ui/Spinner';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import { RiAlertLine } from 'react-icons/ri';
+import { RiAlertLine, RiWalletLine } from 'react-icons/ri';
 import { Player } from '@lottiefiles/react-lottie-player';
 
 ChartJS.register(
@@ -272,14 +272,10 @@ export default function WalletAnalysis() {
         {/* Empty State */}
         {!isLoading && !queryError && !activity && (
           <div className="text-center py-10">
-            <div className="w-32 h-32 mx-auto">
-              <Player
-                autoplay
-                loop
-                src="https://assets9.lottiefiles.com/packages/lf20_rbtawnwz.json"
-              />
+            <div className="glass-panel rounded-xl p-8">
+              <RiWalletLine className="text-solana-purple/50 text-6xl mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">Enter a wallet address to view analysis</p>
             </div>
-            <p className="text-gray-600 dark:text-gray-400">Enter a wallet address to view analysis</p>
           </div>
         )}
       </div>

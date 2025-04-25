@@ -190,13 +190,16 @@ export function GuideModal({ isOpen, onClose }: GuideModalProps) {
             <div className="p-6 md:p-10 flex flex-col md:flex-row gap-6 md:gap-10">
               {/* Left column - Animation */}
               <div className="md:w-1/2 flex items-center justify-center">
-                <div className="w-full h-48 md:h-64">
-                  <Player
-                    autoplay
-                    loop
-                    src={currentGuide.animation}
-                    style={{ height: '100%', width: '100%' }}
-                  />
+                <div className="w-full h-48 md:h-64 flex items-center justify-center">
+                  <div className="w-32 h-32 bg-gradient-to-br from-solana-purple/20 to-solana-teal/20 rounded-full flex items-center justify-center">
+                    {currentGuide.icon ? (
+                      <div className="text-6xl">
+                        {currentGuide.icon}
+                      </div>
+                    ) : (
+                      <SiSolana className="text-solana-purple text-6xl" />
+                    )}
+                  </div>
                 </div>
               </div>
               
