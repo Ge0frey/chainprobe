@@ -29,7 +29,11 @@ import {
   RiAlertLine,
   RiCalendarLine,
   RiMoneyDollarCircleLine,
+  RiZoomInLine,
+  RiZoomOutLine,
+  RiFullscreenLine,
 } from 'react-icons/ri';
+import { Player } from '@lottiefiles/react-lottie-player';
 
 // Date filter options
 const DATE_FILTER_OPTIONS = [
@@ -155,6 +159,9 @@ export default function TransactionFlow() {
   const [showFilters, setShowFilters] = useState(false);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [flowData, setFlowData] = useState<TxFlow | null>(null);
 
   // Helper function to calculate risk score
   const calculateRiskScore = (address: string, transactions: any[]) => {
@@ -403,157 +410,136 @@ export default function TransactionFlow() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="md:flex md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:text-3xl sm:tracking-tight">
+    <div className="min-h-screen p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-solana-purple to-solana-teal bg-clip-text text-transparent">
             Transaction Flow Analysis
-          </h2>
+          </h1>
+          <p className="text-muted-foreground">
+            Visualize and analyze the flow of funds between wallets on Solana
+          </p>
         </div>
-      </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-        <form onSubmit={onSearch} className="space-y-4">
-          <div className="flex space-x-4">
-            <div className="flex-1">
-              <label htmlFor="wallet-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Wallet Address
-              </label>
-              <div className="mt-1">
-                <input
-                  type="text"
-                  id="wallet-address"
-                  value={searchAddress}
-                  onChange={(e) => setSearchAddress(e.target.value)}
-                  placeholder="Enter Solana wallet address"
-                  className="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-            </div>
-            <div className="flex items-end">
+        {/* Search Form */}
+        <form onSubmit={onSearch} className="mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            <input
+              type="text"
+              value={searchAddress}
+              onChange={(e) => setSearchAddress(e.target.value)}
+              placeholder="Enter wallet address to analyze"
+              className="flex-1 glass-input"
+            />
+            <div className="flex gap-2">
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(Number(e.target.value))}
+                className="glass-input w-40"
+              >
+                <option value="1">Last 24 hours</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
               <button
                 type="submit"
-                className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                className="px-6 py-3 bg-gradient-to-r from-solana-purple to-solana-teal text-white rounded-lg font-semibold hover:shadow-glow transition-all"
               >
                 Analyze
               </button>
             </div>
           </div>
-
-          <div className="flex items-center space-x-4">
-            <button
-              type="button"
-              onClick={() => setShowFilters(!showFilters)}
-              className="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            >
-              <RiFilter3Line className="w-5 h-5 mr-1" />
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </button>
-            {showFilters && (
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Time Period
-                  </label>
-                  <select
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(Number(e.target.value))}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
-                  >
-                    {DATE_FILTER_OPTIONS.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Min Amount (SOL)
-                  </label>
-                  <input
-                    type="number"
-                    value={minAmount}
-                    onChange={(e) => setMinAmount(Number(e.target.value))}
-                    min="0"
-                    step="0.1"
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Max Amount (SOL)
-                  </label>
-                  <input
-                    type="number"
-                    value={maxAmount || ''}
-                    onChange={(e) => setMaxAmount(e.target.value ? Number(e.target.value) : null)}
-                    min="0"
-                    step="0.1"
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
         </form>
-      </div>
 
-      {/* Flow Visualization */}
-      {txLoading ? (
-        <div className="flex items-center justify-center h-96">
-          <Spinner />
-          <p className="ml-3 text-gray-500 dark:text-gray-400">Analyzing transaction flow...</p>
-        </div>
-      ) : transactions ? (
-        <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-          <div style={{ height: '800px' }} className="rounded-lg overflow-hidden">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              nodeTypes={{ custom: CustomNode }}
-              fitView
-              attributionPosition="bottom-right"
-            >
-              <Controls />
-              <MiniMap />
-              <Background />
-            </ReactFlow>
+        {/* Loading State */}
+        {txLoading && (
+          <div className="flex justify-center items-center py-20">
+            <Spinner />
+            <span className="ml-3 text-gray-600 dark:text-gray-400">Analyzing transaction flow...</span>
           </div>
-        </div>
-      ) : null}
+        )}
 
-      {/* Flow Statistics */}
-      {transactions && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Flow Statistics</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Total Volume</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {transactions.reduce((sum, tx) => sum + tx.amount, 0).toFixed(2)} SOL
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Unique Addresses</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {new Set([...transactions.map(tx => tx.from), ...transactions.map(tx => tx.to)]).size}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Transaction Count</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {transactions.length}
-                </span>
+        {/* Error State */}
+        {txError && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-red-600 mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-center gap-3"
+          >
+            <div className="bg-red-100 dark:bg-red-800/30 p-2 rounded-full">
+              <RiAlertLine className="text-red-600 dark:text-red-400 text-xl" />
+            </div>
+            <div>
+              <h3 className="font-medium text-red-800 dark:text-red-300">Error</h3>
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {txError instanceof Error ? txError.message : 'An error occurred'}
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Flow Visualization */}
+        {!txLoading && !txError && transactions && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-panel rounded-xl overflow-hidden"
+          >
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Transaction Flow</h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {}}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <RiZoomInLine />
+                </button>
+                <button
+                  onClick={() => {}}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <RiZoomOutLine />
+                </button>
+                <button
+                  onClick={() => {}}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <RiFullscreenLine />
+                </button>
               </div>
             </div>
+            
+            <div className="h-[600px] relative">
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                nodeTypes={{ custom: CustomNode }}
+                fitView
+              >
+                <Background />
+                <Controls />
+              </ReactFlow>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Empty State */}
+        {!txLoading && !txError && !transactions && (
+          <div className="text-center py-10">
+            <div className="w-32 h-32 mx-auto">
+              <Player
+                autoplay
+                loop
+                src="https://lottie.host/1b6611dd-9482-489e-8511-ac74fab3bf5a/0r0MBEZLw3.json"
+              />
+            </div>
+            <p className="text-gray-600 dark:text-gray-400">Enter a wallet address to visualize transaction flow</p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 } 
