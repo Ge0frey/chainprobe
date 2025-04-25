@@ -10,7 +10,6 @@ import {
   RiRadarLine,
   RiMenuLine,
   RiCloseLine,
-  RiSearchLine,
   RiMoonLine,
   RiSunLine,
   RiShieldCheckLine,
@@ -72,7 +71,7 @@ export default function Layout() {
       <aside className={`fixed top-0 left-0 z-40 w-64 h-screen transition-transform ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0`}>
-        <div className="h-full px-3 py-4 overflow-y-auto bg-card/50 backdrop-blur-md border-r border-border">
+        <div className="h-full px-3 py-4 overflow-y-auto bg-card/50 backdrop-blur-md border-r border-border flex flex-col">
           {/* Logo */}
           <div className="flex items-center gap-2 px-4 mb-8">
             <SiSolana className="text-2xl text-solana-purple" />
@@ -80,7 +79,7 @@ export default function Layout() {
           </div>
 
           {/* Navigation */}
-          <div className="space-y-8">
+          <div className="flex-1 space-y-8">
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Dashboard</p>
               <nav className="space-y-1 relative">
@@ -100,26 +99,26 @@ export default function Layout() {
                 <NavLink to="/bridge-monitor" icon={<RiExchangeLine />} label="Bridge Monitor" />
               </nav>
             </div>
+          </div>
 
-            {/* Settings and Help */}
-            <div>
-              <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Settings</p>
-              <div className="space-y-1 px-4">
-                <button
-                  onClick={toggleDarkMode}
-                  className="flex items-center gap-2 w-full px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                >
-                  {isDarkMode ? <RiSunLine className="text-xl" /> : <RiMoonLine className="text-xl" />}
-                  <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
-                </button>
-                <button
-                  onClick={openGuide}
-                  className="flex items-center gap-2 w-full px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                >
-                  <RiQuestionLine className="text-xl" />
-                  <span>Guide</span>
-                </button>
-              </div>
+          {/* Settings and Help - Now at the bottom */}
+          <div className="pt-4 border-t border-border mt-4">
+            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Settings</p>
+            <div className="space-y-1 px-4">
+              <button
+                onClick={toggleDarkMode}
+                className="flex items-center gap-2 w-full px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
+              >
+                {isDarkMode ? <RiSunLine className="text-xl" /> : <RiMoonLine className="text-xl" />}
+                <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+              </button>
+              <button
+                onClick={openGuide}
+                className="flex items-center gap-2 w-full px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
+              >
+                <RiQuestionLine className="text-xl" />
+                <span>Guide</span>
+              </button>
             </div>
           </div>
         </div>
@@ -127,23 +126,6 @@ export default function Layout() {
 
       {/* Main content wrapper */}
       <div className="lg:ml-64 min-h-screen flex flex-col">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 w-full px-4 py-3 bg-card/50 backdrop-blur-md border-b border-border">
-          <div className="flex items-center justify-between">
-            {/* Search */}
-            <div className="relative flex-1 max-w-xl">
-              <div className="relative">
-                <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Quick search..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-card/30 hover:bg-card/50 transition-all border border-border focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:focus:ring-solana-teal/30"
-                />
-              </div>
-            </div>
-          </div>
-        </header>
-
         {/* Page content */}
         <main className="flex-1 relative">
           <Outlet />
