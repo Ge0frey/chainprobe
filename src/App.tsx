@@ -14,6 +14,8 @@ import WalletAnalysis from './components/WalletAnalysis';
 import EntityLabels from './components/EntityLabels';
 import TransactionClustering from './components/TransactionClustering';
 import PatternAnalysis from './components/PatternAnalysis';
+import SmartContractScanner from './components/SmartContractScanner';
+import BridgeMonitor from './components/BridgeMonitor';
 
 // Initialize QueryClient for React Query
 const queryClient = new QueryClient({
@@ -53,6 +55,8 @@ function App() {
                   <Route path="/entity-labels" element={<EntityLabels />} />
                   <Route path="/transaction-clustering" element={<TransactionClustering />} />
                   <Route path="/pattern-analysis" element={<PatternAnalysis />} />
+                  <Route path="/smart-contract-scanner" element={<SmartContractScanner />} />
+                  <Route path="/bridge-monitor" element={<BridgeMonitor />} />
                 </Route>
 
                 {/* Catch all route */}
