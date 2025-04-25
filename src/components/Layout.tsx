@@ -1,49 +1,25 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { 
-  RiBankLine, 
+  RiDashboardLine, 
   RiFlowChart, 
   RiWalletLine, 
   RiUserSearchLine, 
-  RiGroupLine,
-  RiSunLine,
-  RiMoonLine,
+  RiGroupLine, 
+  RiRadarLine,
   RiMenuLine,
   RiCloseLine,
-  RiQuestionLine,
-  RiRadarLine,
   RiSearchLine,
-  RiSettings4Line,
-  RiDashboardLine,
+  RiMoonLine,
+  RiSunLine,
   RiShieldCheckLine,
-  RiExchangeLine
+  RiExchangeLine,
+  RiQuestionLine
 } from 'react-icons/ri';
 import { SiSolana } from 'react-icons/si';
 import { GuideModal } from './ui/GuideModal';
 import { useGuideModal } from './ui/useGuideModal';
-
-// The variants for the page transitions
-const pageVariants = {
-  initial: {
-    opacity: 0,
-    y: 20,
-  },
-  in: {
-    opacity: 1,
-    y: 0,
-  },
-  out: {
-    opacity: 0,
-    y: -20,
-  },
-};
-
-const pageTransition = {
-  type: 'tween',
-  ease: 'anticipate',
-  duration: 0.4,
-};
 
 const NavLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => {
   const location = useLocation();
@@ -78,21 +54,8 @@ const NavLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label
 
 export default function Layout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const location = useLocation();
   const { isOpen: isGuideOpen, onClose: onGuideClose, openGuide } = useGuideModal();
-
-  // Handle dark mode
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
-  }, [isDarkMode]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -103,264 +66,102 @@ export default function Layout() {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  const toggleSearch = () => {
-    setIsSearchOpen(!isSearchOpen);
-  };
-
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      {/* Glass gradient strip at top */}
-      <div className="h-1 w-full bg-gradient-solana"></div>
-      
-      {/* Main container */}
-      <div className="flex flex-1">
-        {/* Sidebar - Desktop */}
-        <aside className={`fixed top-0 left-0 z-40 w-64 h-screen transition-transform ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0`}>
-          <div className="h-full px-3 py-4 overflow-y-auto bg-card/50 backdrop-blur-md border-r border-border">
-            {/* Logo */}
-            <div className="flex items-center gap-2 px-4 mb-8">
-              <SiSolana className="text-2xl text-solana-purple" />
-              <span className="text-xl font-bold">ChainProbe</span>
+    <div className="min-h-screen bg-background">
+      {/* Sidebar */}
+      <aside className={`fixed top-0 left-0 z-40 w-64 h-screen transition-transform ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0`}>
+        <div className="h-full px-3 py-4 overflow-y-auto bg-card/50 backdrop-blur-md border-r border-border">
+          {/* Logo */}
+          <div className="flex items-center gap-2 px-4 mb-8">
+            <SiSolana className="text-2xl text-solana-purple" />
+            <span className="text-xl font-bold">ChainProbe</span>
+          </div>
+
+          {/* Navigation */}
+          <div className="space-y-8">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Dashboard</p>
+              <nav className="space-y-1 relative">
+                <NavLink to="/dashboard" icon={<RiDashboardLine />} label="Overview" />
+              </nav>
             </div>
 
-            {/* Navigation */}
-            <div className="space-y-8">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Dashboard</p>
-                <nav className="space-y-1 relative">
-                  <NavLink to="/dashboard" icon={<RiDashboardLine />} label="Overview" />
-                </nav>
-              </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Analysis Tools</p>
+              <nav className="space-y-1 relative">
+                <NavLink to="/transaction-flow" icon={<RiFlowChart />} label="Transaction Flow" />
+                <NavLink to="/wallet-analysis" icon={<RiWalletLine />} label="Wallet Analysis" />
+                <NavLink to="/entity-labels" icon={<RiUserSearchLine />} label="Entity Labels" />
+                <NavLink to="/transaction-clustering" icon={<RiGroupLine />} label="Clustering" />
+                <NavLink to="/pattern-analysis" icon={<RiRadarLine />} label="Pattern Analysis" />
+                <NavLink to="/smart-contract-scanner" icon={<RiShieldCheckLine />} label="Contract Scanner" />
+                <NavLink to="/bridge-monitor" icon={<RiExchangeLine />} label="Bridge Monitor" />
+              </nav>
+            </div>
 
-              <div>
-                <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Analysis Tools</p>
-                <nav className="space-y-1 relative">
-                  <NavLink to="/transaction-flow" icon={<RiFlowChart />} label="Transaction Flow" />
-                  <NavLink to="/wallet-analysis" icon={<RiWalletLine />} label="Wallet Analysis" />
-                  <NavLink to="/entity-labels" icon={<RiUserSearchLine />} label="Entity Labels" />
-                  <NavLink to="/transaction-clustering" icon={<RiGroupLine />} label="Clustering" />
-                  <NavLink to="/pattern-analysis" icon={<RiRadarLine />} label="Pattern Analysis" />
-                  <NavLink to="/smart-contract-scanner" icon={<RiShieldCheckLine />} label="Contract Scanner" />
-                  <NavLink to="/bridge-monitor" icon={<RiExchangeLine />} label="Bridge Monitor" />
-                </nav>
+            {/* Settings and Help */}
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Settings</p>
+              <div className="space-y-1 px-4">
+                <button
+                  onClick={toggleDarkMode}
+                  className="flex items-center gap-2 w-full px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
+                >
+                  {isDarkMode ? <RiSunLine className="text-xl" /> : <RiMoonLine className="text-xl" />}
+                  <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                </button>
+                <button
+                  onClick={openGuide}
+                  className="flex items-center gap-2 w-full px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
+                >
+                  <RiQuestionLine className="text-xl" />
+                  <span>Guide</span>
+                </button>
               </div>
             </div>
           </div>
-        </aside>
-        
-        {/* Mobile header */}
-        <header className="md:hidden flex items-center justify-between p-4 bg-white/80 dark:bg-background border-b border-gray-200/50 dark:border-border sticky top-0 z-30">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-solana-purple to-solana-teal">
-              <SiSolana className="text-lg text-white" />
+        </div>
+      </aside>
+
+      {/* Main content wrapper */}
+      <div className="lg:ml-64 min-h-screen flex flex-col">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 w-full px-4 py-3 bg-card/50 backdrop-blur-md border-b border-border">
+          <div className="flex items-center justify-between">
+            {/* Search */}
+            <div className="relative flex-1 max-w-xl">
+              <div className="relative">
+                <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Quick search..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-card/30 hover:bg-card/50 transition-all border border-border focus:outline-none focus:ring-2 focus:ring-solana-purple/30 dark:focus:ring-solana-teal/30"
+                />
+              </div>
             </div>
-            <h1 className="font-bold text-lg text-gray-900 dark:text-white">Solana Forensics</h1>
-          </Link>
-          
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={toggleSearch}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-            >
-              <RiSearchLine className="text-xl text-gray-600 dark:text-gray-400" />
-            </button>
-            
-            <button 
-              onClick={openGuide}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-            >
-              <RiQuestionLine className="text-xl text-solana-teal" />
-            </button>
-            
-            <button 
-              onClick={toggleDarkMode}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-            >
-              {!isDarkMode ? (
-                <RiSunLine className="text-xl text-amber-400" />
-              ) : (
-                <RiMoonLine className="text-xl text-solana-purple" />
-              )}
-            </button>
-            
-            <button
-              onClick={toggleMobileMenu}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-            >
-              {isMobileMenuOpen ? (
-                <RiCloseLine className="text-xl text-gray-900 dark:text-white" />
-              ) : (
-                <RiMenuLine className="text-xl text-gray-900 dark:text-white" />
-              )}
-            </button>
           </div>
         </header>
 
-        {/* Global search overlay */}
-        <AnimatePresence>
-          {isSearchOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="fixed inset-0 bg-background/60 backdrop-blur-md z-50 flex items-start justify-center pt-20"
-              onClick={() => setIsSearchOpen(false)}
-            >
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full max-w-xl p-2 bg-card border border-border rounded-2xl"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="flex items-center gap-3 p-3">
-                  <RiSearchLine className="text-xl text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search wallets, transactions, or entities..."
-                    className="bg-transparent border-none outline-none w-full text-foreground placeholder-muted-foreground"
-                    autoFocus
-                  />
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        
-        {/* Mobile navigation menu */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, x: '100%' }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: '100%' }}
-              transition={{ type: 'spring', damping: 25 }}
-              className="md:hidden fixed inset-y-0 right-0 z-40 w-64 bg-white/95 dark:bg-background/95 backdrop-blur-sm border-l border-gray-200/50 dark:border-border shadow-2xl"
-            >
-              <div className="p-5 h-full flex flex-col">
-                <div className="flex justify-between items-center mb-6">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Navigation</p>
-                  <button 
-                    onClick={toggleMobileMenu}
-                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10"
-                  >
-                    <RiCloseLine className="text-xl text-gray-900 dark:text-white" />
-                  </button>
-                </div>
-                
-                <nav className="space-y-1 mb-6">
-                  <Link to="/dashboard" 
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                    onClick={toggleMobileMenu}
-                  >
-                    <RiDashboardLine className="text-xl" />
-                    <span>Dashboard</span>
-                  </Link>
-                  <Link to="/transaction-flow"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                    onClick={toggleMobileMenu}
-                  >
-                    <RiFlowChart className="text-xl" />
-                    <span>Transaction Flow</span>
-                  </Link>
-                  <Link to="/wallet-analysis"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                    onClick={toggleMobileMenu}
-                  >
-                    <RiWalletLine className="text-xl" />
-                    <span>Wallet Analysis</span>
-                  </Link>
-                  <Link to="/entity-labels"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                    onClick={toggleMobileMenu}
-                  >
-                    <RiUserSearchLine className="text-xl" />
-                    <span>Entity Labels</span>
-                  </Link>
-                  <Link to="/transaction-clustering"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                    onClick={toggleMobileMenu}
-                  >
-                    <RiGroupLine className="text-xl" />
-                    <span>Transaction Clustering</span>
-                  </Link>
-                  <Link to="/pattern-analysis"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                    onClick={toggleMobileMenu}
-                  >
-                    <RiRadarLine className="text-xl" />
-                    <span>Pattern Analysis</span>
-                  </Link>
-                  <Link to="/smart-contract-scanner"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                    onClick={toggleMobileMenu}
-                  >
-                    <RiShieldCheckLine className="text-xl" />
-                    <span>Contract Scanner</span>
-                  </Link>
-                  <Link to="/bridge-monitor"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                    onClick={toggleMobileMenu}
-                  >
-                    <RiExchangeLine className="text-xl" />
-                    <span>Bridge Monitor</span>
-                  </Link>
-                </nav>
-                
-                <div className="mt-auto flex flex-col gap-2">
-                  <button 
-                    onClick={() => { 
-                      openGuide();
-                      toggleMobileMenu();
-                    }}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                  >
-                    <RiQuestionLine className="text-xl text-solana-teal" />
-                    <span>Help Guide</span>
-                  </button>
-                  
-                  <button 
-                    onClick={toggleDarkMode}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
-                  >
-                    {!isDarkMode ? (
-                      <>
-                        <RiSunLine className="text-xl text-amber-400" />
-                        <span>Light Mode</span>
-                      </>
-                    ) : (
-                      <>
-                        <RiMoonLine className="text-xl text-solana-purple" />
-                        <span>Dark Mode</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial="initial"
-              animate="in"
-              exit="out"
-              variants={pageVariants}
-              transition={pageTransition}
-              className="p-6 md:p-10 h-full"
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+        {/* Page content */}
+        <main className="flex-1 relative">
+          <Outlet />
         </main>
       </div>
-      
+
+      {/* Mobile menu button */}
+      <button
+        onClick={toggleMobileMenu}
+        className="fixed bottom-4 left-4 z-50 lg:hidden p-3 rounded-full bg-card/50 backdrop-blur-md border border-border"
+      >
+        {isMobileMenuOpen ? (
+          <RiCloseLine className="text-2xl" />
+        ) : (
+          <RiMenuLine className="text-2xl" />
+        )}
+      </button>
+
       {/* Guide Modal */}
       <GuideModal isOpen={isGuideOpen} onClose={onGuideClose} />
     </div>
