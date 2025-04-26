@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ReactFlow, {
   MiniMap,
@@ -10,6 +10,9 @@ import ReactFlow, {
   ReactFlowProvider,
   useReactFlow,
   Node,
+  Edge,
+  Viewport,
+  BackgroundVariant,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { format } from 'date-fns';
@@ -39,6 +42,12 @@ import {
   RiArrowRightLine,
 } from 'react-icons/ri';
 import { Player } from '@lottiefiles/react-lottie-player';
+
+// Helper function to shorten addresses
+const shortenAddress = (address: string) => {
+  if (!address) return '';
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
 
 // Date filter options
 const DATE_FILTER_OPTIONS = [
@@ -237,6 +246,74 @@ const FlowControls = ({
   </div>
 );
 
+// Flow visualization component that uses the ReactFlow hooks
+function FlowVisualization({
+  nodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  onNodeClick,
+  selectedNode
+}: {
+  nodes: Node[];
+  edges: Edge[];
+  onNodesChange: (changes: any) => void;
+  onEdgesChange: (changes: any) => void;
+  onNodeClick: (event: React.MouseEvent, node: Node) => void;
+  selectedNode: string | null;
+}) {
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  return (
+    <div className="w-full h-[700px] relative bg-gray-900/30 backdrop-blur-sm rounded-lg">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={{ custom: CustomNode }}
+        onNodeClick={onNodeClick}
+        fitView
+        minZoom={0.1}
+        maxZoom={4}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        style={{ background: 'transparent' }}
+      >
+        <Background color="#94a3b8" variant="dots" />
+        <Controls className="bg-white/90 dark:bg-gray-800/90 p-2 rounded-lg shadow-lg" />
+        <MiniMap 
+          nodeColor={node => {
+            if (node.data.isCenter) return '#9945FF';
+            if (node.data.isHighRisk) return '#ef4444';
+            if (node.data.isExchange) return '#f59e0b';
+            return '#64748b';
+          }}
+          maskColor="rgba(0, 0, 0, 0.2)"
+          className="bg-white/90 dark:bg-gray-800/90 rounded-lg shadow-lg"
+        />
+        <FlowControls 
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onFitView={() => fitView()}
+          onToggleFullscreen={toggleFullscreen}
+          isFullscreen={isFullscreen}
+        />
+      </ReactFlow>
+    </div>
+  );
+}
+
 export default function TransactionFlow() {
   const [searchAddress, setSearchAddress] = useState('');
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
@@ -249,9 +326,23 @@ export default function TransactionFlow() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [flowData, setFlowData] = useState<TxFlow | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const reactFlowInstance = useReactFlow();
+
+  const containerStyle = {
+    width: '100%',
+    height: '700px',
+    background: 'rgba(13, 17, 23, 0.7)',
+    backdropFilter: 'blur(8px)',
+    borderRadius: '12px',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+  };
+
+  // Default viewport configuration
+  const defaultViewport: Viewport = {
+    x: 0,
+    y: 0,
+    zoom: 0.8,
+  };
 
   // Helper function to calculate risk score
   const calculateRiskScore = (address: string, transactions: any[]) => {
@@ -293,6 +384,68 @@ export default function TransactionFlow() {
     return isSmallAmount || hasCircular || isHighFrequency;
   };
 
+  // Function to calculate positions for nodes using a basic force-directed approach
+  const calculateNodePositions = (
+    addresses: Set<string>, 
+    transactions: TxFlow[], 
+    centerAddress: string | null,
+    dimensions: { width: number, height: number }
+  ) => {
+    const positions = new Map();
+    const addressArray = Array.from(addresses);
+    
+    // Center point
+    const centerX = dimensions.width / 2;
+    const centerY = dimensions.height / 2;
+    
+    // Calculate base radius based on number of nodes
+    const baseRadius = Math.min(dimensions.width, dimensions.height) * 0.3;
+    
+    // Create initial positions based on transaction relationships
+    addressArray.forEach((address, index) => {
+      // Determine if this is mainly a source or target address
+      const outgoingCount = transactions.filter(tx => tx.from === address).length;
+      const incomingCount = transactions.filter(tx => tx.to === address).length;
+      
+      // Calculate angle based on index and total nodes
+      const angle = (index / addressArray.length) * 2 * Math.PI;
+      
+      // Adjust radius based on transaction volume
+      const txVolume = transactions
+        .filter(tx => tx.from === address || tx.to === address)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      const radiusAdjustment = Math.min(Math.log10(txVolume + 1) * 20, 100);
+      
+      // Position nodes in a spiral pattern
+      const radius = baseRadius + (index * 10) + radiusAdjustment;
+      
+      // Calculate position with offset based on transaction direction
+      let x, y;
+      if (outgoingCount > incomingCount) {
+        // Source nodes lean left
+        x = centerX + (radius * Math.cos(angle)) - 100;
+        y = centerY + (radius * Math.sin(angle));
+      } else {
+        // Target nodes lean right
+        x = centerX + (radius * Math.cos(angle)) + 100;
+        y = centerY + (radius * Math.sin(angle));
+      }
+      
+      // Add some randomness to prevent overlap
+      x += (Math.random() - 0.5) * 50;
+      y += (Math.random() - 0.5) * 50;
+      
+      positions.set(address, { x, y });
+    });
+    
+    // If there's a center address, position it in the middle
+    if (centerAddress) {
+      positions.set(centerAddress, { x: centerX, y: centerY });
+    }
+    
+    return positions;
+  };
+
   // Fetch transaction flow data
   const { 
     data: transactions, 
@@ -304,253 +457,66 @@ export default function TransactionFlow() {
     enabled: !!currentAddress,
   });
 
-  // Toggle fullscreen mode
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
+  useEffect(() => {
+    if (!transactions) return; // Add early return if no transactions
 
-  // Zoom controls
-  const handleZoomIn = () => {
-    reactFlowInstance.zoomIn();
-  };
-
-  const handleZoomOut = () => {
-    reactFlowInstance.zoomOut();
-  };
-
-  const handleFitView = () => {
-    reactFlowInstance.fitView();
-  };
-
-  // Transform data for React Flow with enhanced positioning algorithm
-  const { nodes: flowNodes, edges: flowEdges } = useMemo(() => {
-    if (!transactions) return { nodes: [], edges: [] };
-
-    const nodeMap = new Map();
-    const nodes = [];
-    const edges = [];
-    
-    // Calculate transaction frequencies and volumes
-    const txFrequency = new Map();
-    const txVolumes = new Map();
-    const addressPairs = new Map();
-
+    // Get unique addresses
+    const addresses = new Set<string>();
     transactions.forEach(tx => {
-      // Track frequency between address pairs
-      const pairKey = `${tx.from}|${tx.to}`;
-      txFrequency.set(pairKey, (txFrequency.get(pairKey) || 0) + 1);
-      txVolumes.set(pairKey, (txVolumes.get(pairKey) || 0) + tx.amount);
-
-      // Track address correlations
-      if (!addressPairs.has(tx.from)) {
-        addressPairs.set(tx.from, new Map());
-      }
-      if (!addressPairs.has(tx.to)) {
-        addressPairs.set(tx.to, new Map());
-      }
-      
-      const fromPairs = addressPairs.get(tx.from);
-      fromPairs.set(tx.to, (fromPairs.get(tx.to) || 0) + 1);
-      
-      const toPairs = addressPairs.get(tx.to);
-      toPairs.set(tx.from, (toPairs.get(tx.from) || 0) + 1);
+      addresses.add(tx.from);
+      addresses.add(tx.to);
     });
 
-    // Calculate correlation strengths
-    const correlations = new Map();
-    addressPairs.forEach((pairs, address) => {
-      const totalTx = Array.from(pairs.values()).reduce((sum, count) => sum + count, 0);
-      const addressCorrelations = Array.from(pairs.entries())
-        .map(([target, count]) => ({
-          address: target,
-          strength: count / totalTx
-        }))
-        .sort((a, b) => b.strength - a.strength)
-        .slice(0, 3); // Top 3 correlations
-      
-      correlations.set(address, addressCorrelations);
-    });
+    // Calculate dimensions for node positioning
+    const dimensions = {
+      width: 1200,  // Default width
+      height: 600,  // Default height
+    };
 
-    // Identify unique source and target addresses
-    const sourceNodes = new Set(transactions.map(tx => tx.from));
-    const targetNodes = new Set(transactions.map(tx => tx.to));
-    const allAddresses = new Set([...sourceNodes, ...targetNodes]);
-    
-    // Remove center node from allAddresses
-    if (currentAddress) {
-      allAddresses.delete(currentAddress);
-    }
-    
-    // Use force-directed positioning for better visualization
-    const nodePositions = calculateNodePositions(
-      allAddresses, 
-      transactions, 
-      currentAddress,
-      { width: 800, height: 600 }
-    );
+    // Calculate node positions
+    const positions = calculateNodePositions(addresses, transactions, currentAddress, dimensions);
 
-    // Add center node (target wallet)
-    if (currentAddress) {
-      const centerPos = { x: 400, y: 300 };
-      const centerTxs = transactions;
-      nodeMap.set(currentAddress, {
-        id: currentAddress,
-        type: 'custom',
-        position: centerPos,
-        data: {
-          label: 'Target Wallet',
-          fullAddress: currentAddress,
-          isCenter: true,
-          amount: centerTxs.reduce((sum, tx) => sum + tx.amount, 0),
-          transactionCount: centerTxs.length,
-          correlations: correlations.get(currentAddress) || [],
-          type: 'center'
-        },
-      });
-      nodes.push(nodeMap.get(currentAddress));
-    }
+    // Create nodes
+    const newNodes = Array.from(addresses).map(address => ({
+      id: address,
+      data: { label: shortenAddress(address) },
+      position: positions.get(address) || { x: 0, y: 0 },
+      style: {
+        background: address === currentAddress ? '#4CAF50' : '#1a1a1a',
+        color: '#fff',
+        border: '1px solid #333',
+        borderRadius: '8px',
+        padding: '10px',
+        fontSize: '14px',
+        fontFamily: 'monospace',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+        width: 180,
+      },
+    }));
 
-    // Add all other nodes
-    allAddresses.forEach((address) => {
-      if (!nodeMap.has(address)) {
-        const pos = nodePositions.get(address) || { x: 0, y: 0 };
-        const addressTxs = transactions.filter(tx => tx.from === address || tx.to === address);
-        const volume = addressTxs.reduce((sum, tx) => sum + tx.amount, 0);
-        const riskScore = calculateRiskScore(address, addressTxs);
-        
-        // Determine if address is exchange or high risk
-        const isExchange = address.endsWith('...') || riskScore < 0.3; // This is a placeholder logic
-        const isHighRisk = riskScore > 0.7;
-        
-        nodeMap.set(address, {
-          id: address,
-          type: 'custom',
-          position: pos,
-          data: {
-            label: address.slice(0, 6) + '...' + address.slice(-4),
-            fullAddress: address,
-            isExchange,
-            isHighRisk,
-            amount: volume,
-            transactionCount: addressTxs.length,
-            correlations: correlations.get(address) || [],
-            type: isExchange ? 'exchange' : 'wallet',
-            riskScore
-          },
-        });
-        nodes.push(nodeMap.get(address));
-      }
-    });
+    // Create edges with improved styling
+    const newEdges = transactions.map((tx, index) => ({
+      id: `${tx.from}-${tx.to}-${index}`,
+      source: tx.from,
+      target: tx.to,
+      animated: true,
+      style: {
+        stroke: '#4CAF50',
+        strokeWidth: 2,
+      },
+      data: {
+        amount: tx.amount,
+      },
+    }));
 
-    // Create edges with enhanced styling
-    transactions.forEach((tx, index) => {
-      const pairKey = `${tx.from}|${tx.to}`;
-      const frequency = txFrequency.get(pairKey);
-      const volume = txVolumes.get(pairKey);
-      
-      // Determine edge style based on patterns
-      let style = edgeStyles.default;
-      let animated = false;
-      
-      if (volume > 10) { // High volume threshold
-        style = edgeStyles.highVolume;
-        animated = true;
-      } else if (frequency > 3) { // Frequent transactions
-        style = edgeStyles.frequent;
-        animated = true;
-      }
-      
-      // Check for suspicious patterns
-      if (isSuspiciousTransaction(tx)) {
-        style = edgeStyles.suspicious;
-        animated = true;
-      }
-
-      // Edge with improved label
-      edges.push({
-        id: `e-${tx.signature || index}`,
-        source: tx.from,
-        target: tx.to,
-        animated,
-        style,
-        label: `${tx.amount.toFixed(2)} SOL`,
-        data: {
-          frequency,
-          volume,
-          signature: tx.signature,
-          timestamp: tx.timestamp
-        },
-        labelStyle: { fill: '#fff', fontWeight: 500 },
-        labelBgStyle: { fill: 'rgba(30, 41, 59, 0.7)', fillOpacity: 0.7, rx: 4, ry: 4 },
-        markerEnd: {
-          type: 'arrowclosed',
-          color: style.stroke,
-          width: 20,
-          height: 20,
-        },
-      });
-    });
-
-    return { nodes, edges };
+    setNodes(newNodes);
+    setEdges(newEdges);
   }, [transactions, currentAddress]);
-
-  // Function to calculate positions for nodes using a basic force-directed approach
-  const calculateNodePositions = (
-    addresses: Set<string>, 
-    transactions: TxFlow[], 
-    centerAddress: string | null,
-    dimensions: { width: number, height: number }
-  ) => {
-    const positions = new Map();
-    const addressArray = Array.from(addresses);
-    
-    // Create initial positions based on transaction relationships
-    addressArray.forEach((address, index) => {
-      // Basic circular layout
-      const angle = (index / addressArray.length) * 2 * Math.PI;
-      const radius = 300;
-      
-      // Determine if this is mainly a source or target address
-      const outgoingCount = transactions.filter(tx => tx.from === address).length;
-      const incomingCount = transactions.filter(tx => tx.to === address).length;
-      
-      // Position sources more to the left, targets to the right
-      let x, y;
-      
-      if (outgoingCount > incomingCount) {
-        // Source node - position on the left side
-        x = dimensions.width / 2 - radius * Math.cos(angle);
-        y = dimensions.height / 2 + radius * Math.sin(angle);
-      } else {
-        // Target node - position on the right side
-        x = dimensions.width / 2 + radius * Math.cos(angle);
-        y = dimensions.height / 2 + radius * Math.sin(angle);
-      }
-      
-      positions.set(address, { x, y });
-    });
-    
-    return positions;
-  };
 
   // Handle node click - select/deselect node
   const onNodeClick = (event: React.MouseEvent, node: Node) => {
     setSelectedNode(selectedNode === node.id ? null : node.id);
   };
-
-  // Update flow when data changes
-  useEffect(() => {
-    if (flowNodes && flowEdges) {
-      setNodes(flowNodes);
-      setEdges(flowEdges);
-    }
-  }, [flowNodes, flowEdges, setNodes, setEdges]);
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -647,38 +613,16 @@ export default function TransactionFlow() {
               </div>
             </div>
             
-            <div className="h-[600px] relative">
-              <ReactFlowProvider>
-                <ReactFlow
-                  nodes={nodes}
-                  edges={edges}
-                  onNodesChange={onNodesChange}
-                  onEdgesChange={onEdgesChange}
-                  nodeTypes={{ custom: CustomNode }}
-                  onNodeClick={onNodeClick}
-                  fitView
-                >
-                  <Background color="#94a3b8" variant="dots" />
-                  <Controls />
-                  <MiniMap 
-                    nodeColor={node => {
-                      if (node.data.isCenter) return '#9945FF';
-                      if (node.data.isHighRisk) return '#ef4444';
-                      if (node.data.isExchange) return '#f59e0b';
-                      return '#64748b';
-                    }}
-                    maskColor="rgba(0, 0, 0, 0.1)"
-                  />
-                  <FlowControls 
-                    onZoomIn={handleZoomIn}
-                    onZoomOut={handleZoomOut}
-                    onFitView={handleFitView}
-                    onToggleFullscreen={toggleFullscreen}
-                    isFullscreen={isFullscreen}
-                  />
-                </ReactFlow>
-              </ReactFlowProvider>
-            </div>
+            <ReactFlowProvider>
+              <FlowVisualization
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeClick={onNodeClick}
+                selectedNode={selectedNode}
+              />
+            </ReactFlowProvider>
           </motion.div>
         )}
 
