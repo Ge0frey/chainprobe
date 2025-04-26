@@ -7,6 +7,9 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   Position,
+  ReactFlowProvider,
+  useReactFlow,
+  Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { format } from 'date-fns';
@@ -33,6 +36,7 @@ import {
   RiZoomOutLine,
   RiFullscreenLine,
   RiFlowChart,
+  RiArrowRightLine,
 } from 'react-icons/ri';
 import { Player } from '@lottiefiles/react-lottie-player';
 
@@ -46,37 +50,61 @@ const DATE_FILTER_OPTIONS = [
   { value: 365, label: 'Last year' },
 ];
 
-// Custom node styles
+// Custom node styles with improved visuals
 const nodeStyles = {
   exchange: {
-    background: '#fbbf24',
+    background: 'rgba(251, 191, 36, 0.8)',
     border: '2px solid #f59e0b',
+    boxShadow: '0 0 10px rgba(251, 191, 36, 0.4)'
   },
   highRisk: {
-    background: '#ef4444',
+    background: 'rgba(239, 68, 68, 0.8)',
     border: '2px solid #dc2626',
+    boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)'
   },
   center: {
-    background: '#9945FF',
+    background: 'rgba(153, 69, 255, 0.8)',
     border: '2px solid #7c3aed',
+    boxShadow: '0 0 10px rgba(153, 69, 255, 0.4)'
+  },
+  wallet: {
+    background: 'rgba(20, 241, 149, 0.8)',
+    border: '2px solid #06b6d4',
+    boxShadow: '0 0 10px rgba(20, 241, 149, 0.4)'
   },
   default: {
-    background: '#64748b',
+    background: 'rgba(100, 116, 139, 0.8)',
     border: '2px solid #475569',
+    boxShadow: '0 0 5px rgba(100, 116, 139, 0.4)'
   },
 };
 
-// Custom node component with enhanced tooltip
+// Improved CustomNode component with animations and better tooltip
 const CustomNode = ({ data }: { data: any }) => {
-  const style = data.isExchange ? nodeStyles.exchange :
-               data.isHighRisk ? nodeStyles.highRisk :
-               data.isCenter ? nodeStyles.center :
-               nodeStyles.default;
+  let style;
+  if (data.isExchange) {
+    style = nodeStyles.exchange;
+  } else if (data.isHighRisk) {
+    style = nodeStyles.highRisk;
+  } else if (data.isCenter) {
+    style = nodeStyles.center;
+  } else if (data.type === 'wallet') {
+    style = nodeStyles.wallet;
+  } else {
+    style = nodeStyles.default;
+  }
 
   return (
-    <div className="group relative">
-      <div className="px-4 py-2 rounded-lg shadow-lg text-white text-sm font-medium min-w-[150px]"
-           style={style}>
+    <motion.div 
+      className="group relative"
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div 
+        className="px-4 py-2 rounded-lg shadow-lg text-white text-sm font-medium min-w-[150px] backdrop-blur-sm"
+        style={style}
+      >
         <div className="truncate">{data.label}</div>
         {data.amount && (
           <div className="text-xs opacity-80 mt-1">
@@ -84,9 +112,10 @@ const CustomNode = ({ data }: { data: any }) => {
           </div>
         )}
       </div>
+      
       {/* Enhanced tooltip */}
-      <div className="absolute hidden group-hover:block z-50 bg-gray-900 text-white p-4 rounded-lg shadow-xl -translate-y-full -translate-x-1/4 mb-2 min-w-[200px]">
-        <div className="text-sm font-medium mb-2">{data.fullAddress || data.label}</div>
+      <div className="absolute hidden group-hover:block z-50 bg-gray-900/90 backdrop-blur-md text-white p-4 rounded-lg shadow-xl -translate-y-full left-1/2 -translate-x-1/2 mb-2 min-w-[220px] border border-gray-700">
+        <div className="text-sm font-medium mb-2 border-b border-gray-700 pb-2">{data.fullAddress || data.label}</div>
         <div className="space-y-1 text-xs">
           <div className="flex justify-between">
             <span>Total Volume:</span>
@@ -94,7 +123,7 @@ const CustomNode = ({ data }: { data: any }) => {
           </div>
           <div className="flex justify-between">
             <span>Transaction Count:</span>
-            <span>{data.transactionCount}</span>
+            <span>{data.transactionCount || 0}</span>
           </div>
           {data.type && (
             <div className="flex justify-between">
@@ -105,12 +134,20 @@ const CustomNode = ({ data }: { data: any }) => {
           {data.riskScore !== undefined && (
             <div className="flex justify-between">
               <span>Risk Score:</span>
-              <span className={data.riskScore > 0.7 ? 'text-red-400' : 'text-green-400'}>
-                {(data.riskScore * 100).toFixed(0)}%
-              </span>
+              <div className="flex items-center">
+                <div className="w-16 bg-gray-700 rounded-full h-1 mr-2">
+                  <div 
+                    className="h-full rounded-full bg-gradient-to-r from-green-500 to-red-500"
+                    style={{ width: `${data.riskScore * 100}%` }}
+                  />
+                </div>
+                <span className={data.riskScore > 0.7 ? 'text-red-400' : data.riskScore > 0.4 ? 'text-yellow-400' : 'text-green-400'}>
+                  {(data.riskScore * 100).toFixed(0)}%
+                </span>
+              </div>
             </div>
           )}
-          {data.correlations && (
+          {data.correlations && data.correlations.length > 0 && (
             <div className="mt-2 pt-2 border-t border-gray-700">
               <div className="font-medium mb-1">Top Correlations:</div>
               {data.correlations.map((corr: any, index: number) => (
@@ -122,16 +159,18 @@ const CustomNode = ({ data }: { data: any }) => {
             </div>
           )}
         </div>
+        <div className="absolute left-1/2 -bottom-2 -translate-x-1/2 w-3 h-3 bg-gray-900 rotate-45 border-r border-b border-gray-700"></div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-// Enhanced edge styles
+// Enhanced edge styles with more visual distinction
 const edgeStyles = {
   critical: {
     stroke: '#ef4444',
     strokeWidth: 3,
+    strokeDasharray: '5,5',
   },
   highVolume: {
     stroke: '#3b82f6',
@@ -144,12 +183,59 @@ const edgeStyles = {
   suspicious: {
     stroke: '#f59e0b',
     strokeWidth: 2,
+    strokeDasharray: '3,3',
   },
   default: {
-    stroke: '#94a3b8',
+    stroke: 'rgba(148, 163, 184, 0.7)',
     strokeWidth: 1.5,
   },
 };
+
+// Enhanced flow control panel
+const FlowControls = ({ 
+  onZoomIn, 
+  onZoomOut, 
+  onFitView, 
+  onToggleFullscreen,
+  isFullscreen 
+}: {
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onFitView: () => void;
+  onToggleFullscreen: () => void;
+  isFullscreen: boolean;
+}) => (
+  <div className="absolute top-4 right-4 flex space-x-2 z-10">
+    <button
+      onClick={onZoomIn}
+      className="p-2 rounded-lg bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      title="Zoom In"
+    >
+      <RiZoomInLine className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+    </button>
+    <button
+      onClick={onZoomOut}
+      className="p-2 rounded-lg bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      title="Zoom Out"
+    >
+      <RiZoomOutLine className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+    </button>
+    <button
+      onClick={onFitView}
+      className="p-2 rounded-lg bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      title="Fit View"
+    >
+      <RiFlowChart className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+    </button>
+    <button
+      onClick={onToggleFullscreen}
+      className="p-2 rounded-lg bg-white/90 dark:bg-gray-800/90 shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+      title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+    >
+      <RiFullscreenLine className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+    </button>
+  </div>
+);
 
 export default function TransactionFlow() {
   const [searchAddress, setSearchAddress] = useState('');
@@ -163,6 +249,9 @@ export default function TransactionFlow() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [flowData, setFlowData] = useState<TxFlow | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const reactFlowInstance = useReactFlow();
 
   // Helper function to calculate risk score
   const calculateRiskScore = (address: string, transactions: any[]) => {
@@ -215,7 +304,31 @@ export default function TransactionFlow() {
     enabled: !!currentAddress,
   });
 
-  // Transform data for React Flow with enhanced correlation data
+  // Toggle fullscreen mode
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  // Zoom controls
+  const handleZoomIn = () => {
+    reactFlowInstance.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    reactFlowInstance.zoomOut();
+  };
+
+  const handleFitView = () => {
+    reactFlowInstance.fitView();
+  };
+
+  // Transform data for React Flow with enhanced positioning algorithm
   const { nodes: flowNodes, edges: flowEdges } = useMemo(() => {
     if (!transactions) return { nodes: [], edges: [] };
 
@@ -264,48 +377,32 @@ export default function TransactionFlow() {
       correlations.set(address, addressCorrelations);
     });
 
-    // Create nodes with correlation data
+    // Identify unique source and target addresses
     const sourceNodes = new Set(transactions.map(tx => tx.from));
     const targetNodes = new Set(transactions.map(tx => tx.to));
+    const allAddresses = new Set([...sourceNodes, ...targetNodes]);
     
-    let yOffset = 0;
-    
-    // Source nodes (left side)
-    Array.from(sourceNodes).forEach((address, index) => {
-      if (!nodeMap.has(address)) {
-        const addressTxs = transactions.filter(tx => tx.from === address || tx.to === address);
-        const volume = addressTxs.reduce((sum, tx) => sum + tx.amount, 0);
-        
-        nodeMap.set(address, {
-          id: address,
-          type: 'custom',
-          position: { x: 0, y: yOffset },
-          data: {
-            label: address.slice(0, 6) + '...' + address.slice(-4),
-            fullAddress: address,
-            isExchange: false,
-            isHighRisk: false,
-            amount: volume,
-            transactionCount: addressTxs.length,
-            correlations: correlations.get(address) || [],
-            type: 'source',
-            riskScore: calculateRiskScore(address, addressTxs)
-          },
-          sourcePosition: Position.Right,
-          targetPosition: Position.Left,
-        });
-        nodes.push(nodeMap.get(address));
-        yOffset += 100;
-      }
-    });
-
-    // Center node (target wallet)
+    // Remove center node from allAddresses
     if (currentAddress) {
+      allAddresses.delete(currentAddress);
+    }
+    
+    // Use force-directed positioning for better visualization
+    const nodePositions = calculateNodePositions(
+      allAddresses, 
+      transactions, 
+      currentAddress,
+      { width: 800, height: 600 }
+    );
+
+    // Add center node (target wallet)
+    if (currentAddress) {
+      const centerPos = { x: 400, y: 300 };
       const centerTxs = transactions;
       nodeMap.set(currentAddress, {
         id: currentAddress,
         type: 'custom',
-        position: { x: 400, y: yOffset / 2 },
+        position: centerPos,
         data: {
           label: 'Target Wallet',
           fullAddress: currentAddress,
@@ -315,39 +412,39 @@ export default function TransactionFlow() {
           correlations: correlations.get(currentAddress) || [],
           type: 'center'
         },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
       });
       nodes.push(nodeMap.get(currentAddress));
     }
 
-    // Target nodes (right side)
-    yOffset = 0;
-    Array.from(targetNodes).forEach((address, index) => {
+    // Add all other nodes
+    allAddresses.forEach((address) => {
       if (!nodeMap.has(address)) {
+        const pos = nodePositions.get(address) || { x: 0, y: 0 };
         const addressTxs = transactions.filter(tx => tx.from === address || tx.to === address);
         const volume = addressTxs.reduce((sum, tx) => sum + tx.amount, 0);
+        const riskScore = calculateRiskScore(address, addressTxs);
+        
+        // Determine if address is exchange or high risk
+        const isExchange = address.endsWith('...') || riskScore < 0.3; // This is a placeholder logic
+        const isHighRisk = riskScore > 0.7;
         
         nodeMap.set(address, {
           id: address,
           type: 'custom',
-          position: { x: 800, y: yOffset },
+          position: pos,
           data: {
             label: address.slice(0, 6) + '...' + address.slice(-4),
             fullAddress: address,
-            isExchange: false,
-            isHighRisk: false,
+            isExchange,
+            isHighRisk,
             amount: volume,
             transactionCount: addressTxs.length,
             correlations: correlations.get(address) || [],
-            type: 'target',
-            riskScore: calculateRiskScore(address, addressTxs)
+            type: isExchange ? 'exchange' : 'wallet',
+            riskScore
           },
-          sourcePosition: Position.Right,
-          targetPosition: Position.Left,
         });
         nodes.push(nodeMap.get(address));
-        yOffset += 100;
       }
     });
 
@@ -375,8 +472,9 @@ export default function TransactionFlow() {
         animated = true;
       }
 
+      // Edge with improved label
       edges.push({
-        id: `e-${tx.signature}`,
+        id: `e-${tx.signature || index}`,
         source: tx.from,
         target: tx.to,
         animated,
@@ -385,15 +483,66 @@ export default function TransactionFlow() {
         data: {
           frequency,
           volume,
-          signature: tx.signature
+          signature: tx.signature,
+          timestamp: tx.timestamp
         },
-        labelStyle: { fill: '#94a3b8', fontWeight: 500 },
-        labelBgStyle: { fill: '#1e293b', fillOpacity: 0.7 },
+        labelStyle: { fill: '#fff', fontWeight: 500 },
+        labelBgStyle: { fill: 'rgba(30, 41, 59, 0.7)', fillOpacity: 0.7, rx: 4, ry: 4 },
+        markerEnd: {
+          type: 'arrowclosed',
+          color: style.stroke,
+          width: 20,
+          height: 20,
+        },
       });
     });
 
     return { nodes, edges };
   }, [transactions, currentAddress]);
+
+  // Function to calculate positions for nodes using a basic force-directed approach
+  const calculateNodePositions = (
+    addresses: Set<string>, 
+    transactions: TxFlow[], 
+    centerAddress: string | null,
+    dimensions: { width: number, height: number }
+  ) => {
+    const positions = new Map();
+    const addressArray = Array.from(addresses);
+    
+    // Create initial positions based on transaction relationships
+    addressArray.forEach((address, index) => {
+      // Basic circular layout
+      const angle = (index / addressArray.length) * 2 * Math.PI;
+      const radius = 300;
+      
+      // Determine if this is mainly a source or target address
+      const outgoingCount = transactions.filter(tx => tx.from === address).length;
+      const incomingCount = transactions.filter(tx => tx.to === address).length;
+      
+      // Position sources more to the left, targets to the right
+      let x, y;
+      
+      if (outgoingCount > incomingCount) {
+        // Source node - position on the left side
+        x = dimensions.width / 2 - radius * Math.cos(angle);
+        y = dimensions.height / 2 + radius * Math.sin(angle);
+      } else {
+        // Target node - position on the right side
+        x = dimensions.width / 2 + radius * Math.cos(angle);
+        y = dimensions.height / 2 + radius * Math.sin(angle);
+      }
+      
+      positions.set(address, { x, y });
+    });
+    
+    return positions;
+  };
+
+  // Handle node click - select/deselect node
+  const onNodeClick = (event: React.MouseEvent, node: Node) => {
+    setSelectedNode(selectedNode === node.id ? null : node.id);
+  };
 
   // Update flow when data changes
   useEffect(() => {
@@ -480,7 +629,7 @@ export default function TransactionFlow() {
           </motion.div>
         )}
 
-        {/* Flow Visualization */}
+        {/* Flow Visualization - enhanced */}
         {!txLoading && !txError && transactions && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -489,40 +638,118 @@ export default function TransactionFlow() {
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Transaction Flow</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {}}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                  <RiZoomInLine />
-                </button>
-                <button
-                  onClick={() => {}}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                  <RiZoomOutLine />
-                </button>
-                <button
-                  onClick={() => {}}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                  <RiFullscreenLine />
-                </button>
+              <div className="flex items-center gap-4">
+                {selectedNode && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Selected:</span> {selectedNode.slice(0, 6)}...{selectedNode.slice(-4)}
+                  </div>
+                )}
               </div>
             </div>
             
             <div className="h-[600px] relative">
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                nodeTypes={{ custom: CustomNode }}
-                fitView
-              >
-                <Background />
-                <Controls />
-              </ReactFlow>
+              <ReactFlowProvider>
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  nodeTypes={{ custom: CustomNode }}
+                  onNodeClick={onNodeClick}
+                  fitView
+                >
+                  <Background color="#94a3b8" variant="dots" />
+                  <Controls />
+                  <MiniMap 
+                    nodeColor={node => {
+                      if (node.data.isCenter) return '#9945FF';
+                      if (node.data.isHighRisk) return '#ef4444';
+                      if (node.data.isExchange) return '#f59e0b';
+                      return '#64748b';
+                    }}
+                    maskColor="rgba(0, 0, 0, 0.1)"
+                  />
+                  <FlowControls 
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    onFitView={handleFitView}
+                    onToggleFullscreen={toggleFullscreen}
+                    isFullscreen={isFullscreen}
+                  />
+                </ReactFlow>
+              </ReactFlowProvider>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Transaction Details - new section when a node is selected */}
+        {selectedNode && !txLoading && !txError && transactions && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-panel rounded-xl p-6 mt-6"
+          >
+            <h2 className="text-lg font-semibold mb-4">Transaction Details</h2>
+            
+            <div className="space-y-4">
+              {/* Filter transactions for selected node */}
+              {transactions
+                .filter(tx => tx.from === selectedNode || tx.to === selectedNode)
+                .slice(0, 5) // Show only the first 5 for brevity
+                .map((tx, index) => (
+                  <div 
+                    key={tx.signature || index}
+                    className="p-4 bg-card/30 rounded-lg border border-border"
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        {tx.from === selectedNode ? (
+                          <RiArrowRightLine className="text-red-500" />
+                        ) : (
+                          <RiArrowRightLine className="text-green-500" />
+                        )}
+                        <span className="text-sm font-medium">
+                          {tx.from === selectedNode ? 'Outgoing' : 'Incoming'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(tx.timestamp * 1000).toLocaleString()}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground text-xs">From</span>
+                        <span className="font-mono">{tx.from.slice(0, 8)}...{tx.from.slice(-6)}</span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-muted-foreground text-xs">To</span>
+                        <span className="font-mono">{tx.to.slice(0, 8)}...{tx.to.slice(-6)}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-2 pt-2 border-t border-border flex justify-between items-center">
+                      <span className={`text-sm font-medium ${tx.from === selectedNode ? 'text-red-500' : 'text-green-500'}`}>
+                        {tx.amount.toFixed(2)} SOL
+                      </span>
+                      <a 
+                        href={`https://solscan.io/tx/${tx.signature}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-solana-purple hover:underline"
+                      >
+                        View on Explorer
+                      </a>
+                    </div>
+                  </div>
+                ))}
+                
+              {/* Show more link if there are more than 5 transactions */}
+              {transactions.filter(tx => tx.from === selectedNode || tx.to === selectedNode).length > 5 && (
+                <button className="w-full py-2 text-sm text-center text-solana-purple hover:text-solana-teal transition-colors">
+                  View all transactions
+                </button>
+              )}
             </div>
           </motion.div>
         )}
