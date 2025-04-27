@@ -15,7 +15,7 @@ import {
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
-import { getEnhancedWalletActivity } from '../services/solana';
+import { getEnhancedWalletActivity, fetchTokenBalances, fetchWalletTransactions } from '../services/solana';
 import { Spinner } from './ui/Spinner';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -42,12 +42,40 @@ export default function WalletAnalysis() {
   // Fetch enhanced wallet activity data
   const { 
     data: activity, 
-    isLoading,
-    error: queryError
+    isLoading: activityLoading,
+    error: activityError
   } = useQuery({
     queryKey: ['enhanced-wallet-activity', currentAddress],
     queryFn: () => currentAddress ? getEnhancedWalletActivity(currentAddress) : null,
     enabled: !!currentAddress,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 30000),
+  });
+
+  // Fetch token balances
+  const {
+    data: tokenBalances,
+    isLoading: tokensLoading,
+    error: tokensError
+  } = useQuery({
+    queryKey: ['token-balances', currentAddress],
+    queryFn: () => currentAddress ? fetchTokenBalances(currentAddress) : null,
+    enabled: !!currentAddress,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 30000),
+  });
+
+  // Fetch recent transactions
+  const {
+    data: transactions,
+    isLoading: txLoading,
+    error: txError
+  } = useQuery({
+    queryKey: ['recent-transactions', currentAddress],
+    queryFn: () => currentAddress ? fetchWalletTransactions(currentAddress, 20) : null,
+    enabled: !!currentAddress,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 30000),
   });
 
   const handleSearch = (e: React.FormEvent) => {
@@ -70,6 +98,9 @@ export default function WalletAnalysis() {
       },
     ],
   } : null;
+
+  const isLoading = activityLoading || tokensLoading || txLoading;
+  const error = activityError || tokensError || txError;
 
   return (
     <div className="min-h-screen p-6">
@@ -111,7 +142,7 @@ export default function WalletAnalysis() {
         )}
 
         {/* Error State */}
-        {queryError && (
+        {error && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -123,14 +154,14 @@ export default function WalletAnalysis() {
             <div>
               <h3 className="font-medium text-red-800 dark:text-red-300">Error</h3>
               <p className="text-sm text-red-600 dark:text-red-400">
-                {queryError instanceof Error ? queryError.message : 'An error occurred'}
+                {error instanceof Error ? error.message : 'An error occurred'}
               </p>
             </div>
           </motion.div>
         )}
 
         {/* Analysis Results */}
-        {!isLoading && !queryError && activity && (
+        {!isLoading && !error && activity && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Wallet Overview */}
             <motion.div
@@ -141,20 +172,22 @@ export default function WalletAnalysis() {
               <h2 className="text-lg font-semibold mb-4">Wallet Overview</h2>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Balance</span>
-                  <span className="font-medium">{activity.balance?.toFixed(2) ?? '0.00'} SOL</span>
+                  <span className="text-muted-foreground">Total Transactions</span>
+                  <span className="font-medium">{activity.totalTransactions}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Transaction Count</span>
-                  <span className="font-medium">{activity.transactionCount ?? 0}</span>
+                  <span className="text-muted-foreground">Volume (In/Out)</span>
+                  <span className="font-medium">
+                    {activity.volumeStats.incoming.toFixed(2)}/{activity.volumeStats.outgoing.toFixed(2)} SOL
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">First Activity</span>
-                  <span className="font-medium">{activity.firstActivity ? format(new Date(activity.firstActivity), 'PPp') : 'N/A'}</span>
+                  <span className="font-medium">{format(activity.firstActive, 'PPp')}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Last Activity</span>
-                  <span className="font-medium">{activity.lastActivity ? format(new Date(activity.lastActivity), 'PPp') : 'N/A'}</span>
+                  <span className="font-medium">{format(activity.lastActive, 'PPp')}</span>
                 </div>
               </div>
             </motion.div>
@@ -205,19 +238,27 @@ export default function WalletAnalysis() {
             >
               <h2 className="text-lg font-semibold mb-4">Token Holdings</h2>
               <div className="space-y-4">
-                {activity.tokens?.length > 0 ? (
-                  activity.tokens.map(token => (
+                {tokenBalances && tokenBalances.length > 0 ? (
+                  tokenBalances.map(token => (
                     <div key={token.mint} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <img src={token.icon} alt={token.name} className="w-8 h-8 rounded-full" />
+                        {token.logo ? (
+                          <img src={token.logo} alt={token.symbol || 'token'} className="w-8 h-8 rounded-full" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-solana-purple/20 to-solana-teal/20 flex items-center justify-center">
+                            <span className="text-xs font-medium">{token.symbol?.[0] || '?'}</span>
+                          </div>
+                        )}
                         <div>
-                          <p className="font-medium">{token.name}</p>
-                          <p className="text-sm text-muted-foreground">{token.symbol}</p>
+                          <p className="font-medium">{token.name || token.symbol || 'Unknown Token'}</p>
+                          <p className="text-sm text-muted-foreground">{token.symbol || token.mint.slice(0, 8)}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">{token.balance?.toFixed(2) ?? '0.00'} SOL</p>
-                        <p className="text-sm text-muted-foreground">${token.value?.toFixed(2) ?? '0.00'}</p>
+                        <p className="font-medium">{token.uiAmount.toFixed(token.decimals || 2)}</p>
+                        {token.value !== undefined && (
+                          <p className="text-sm text-muted-foreground">${token.value.toFixed(2)}</p>
+                        )}
                       </div>
                     </div>
                   ))
@@ -237,16 +278,16 @@ export default function WalletAnalysis() {
             >
               <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
               <div className="space-y-4">
-                {activity.recentTransactions?.length > 0 ? (
-                  activity.recentTransactions.map(tx => (
+                {transactions && transactions.length > 0 ? (
+                  transactions.map(tx => (
                     <div key={tx.signature} className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium">{tx.type}</p>
-                        <p className="text-sm text-muted-foreground">{format(new Date(tx.timestamp), 'PPp')}</p>
+                        <p className="font-medium">{tx.type || 'Transfer'}</p>
+                        <p className="text-sm text-muted-foreground">{format(new Date(tx.blockTime * 1000), 'PPp')}</p>
                       </div>
                       <div className="text-right">
-                        <p className={`font-medium ${tx.amount > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {tx.amount > 0 ? '+' : ''}{tx.amount?.toFixed(2) ?? '0.00'} SOL
+                        <p className={`font-medium ${tx.amount && tx.amount > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {tx.amount ? (tx.amount > 0 ? '+' : '') + tx.amount.toFixed(2) : '0.00'} {tx.tokenInfo?.symbol || 'SOL'}
                         </p>
                         <a
                           href={`https://solscan.io/tx/${tx.signature}`}
@@ -270,7 +311,7 @@ export default function WalletAnalysis() {
         )}
 
         {/* Empty State */}
-        {!isLoading && !queryError && !activity && (
+        {!isLoading && !error && !activity && (
           <div className="text-center py-10">
             <div className="glass-panel rounded-xl p-8">
               <RiWalletLine className="text-solana-purple/50 text-6xl mx-auto mb-4" />

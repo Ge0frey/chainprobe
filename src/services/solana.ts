@@ -63,6 +63,45 @@ export interface EnhancedTransaction {
   }[];
 }
 
+// Add at the top of the file, after imports
+const RATE_LIMIT_DELAY = 500; // ms between requests
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
+
+// Rate limiting queue
+let lastRequestTime = 0;
+
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function rateLimit() {
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+  
+  if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
+    await wait(RATE_LIMIT_DELAY - timeSinceLastRequest);
+  }
+  
+  lastRequestTime = Date.now();
+}
+
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  retries = MAX_RETRIES,
+  delay = INITIAL_RETRY_DELAY
+): Promise<T> {
+  try {
+    await rateLimit();
+    return await fn();
+  } catch (error: any) {
+    if (retries === 0 || error?.response?.status !== 429) {
+      throw error;
+    }
+    
+    await wait(delay);
+    return retryWithBackoff(fn, retries - 1, delay * 2);
+  }
+}
+
 // Fetch enhanced transaction details using Helius API
 export async function fetchEnhancedTransaction(signature: string): Promise<EnhancedTransaction | null> {
   try {
@@ -105,71 +144,74 @@ export async function fetchEnhancedTransaction(signature: string): Promise<Enhan
   }
 }
 
+// Update fetchWalletTransactions to use rate limiting and retries
 export async function fetchWalletTransactions(
   walletAddress: string,
   limit: number = 20
 ): Promise<HeliusTransaction[]> {
-  try {
-    const pubKey = new PublicKey(walletAddress);
-    const signatures = await connection.getSignaturesForAddress(
-      pubKey,
-      { limit },
-      'confirmed'
-    );
+  return retryWithBackoff(async () => {
+    try {
+      const pubKey = new PublicKey(walletAddress);
+      const signatures = await connection.getSignaturesForAddress(
+        pubKey,
+        { limit },
+        'confirmed'
+      );
 
-    if (!signatures.length) {
-      return [];
-    }
-
-    // Get enhanced transaction data from Helius
-    const parsedTxs = await axios.post(
-      `https://api.helius.xyz/v0/transactions/?api-key=${HELIUS_API_KEY}`, 
-      { transactions: signatures.map(sig => sig.signature) }
-    );
-
-    const transactions = parsedTxs.data.map((tx: any, index: number) => {
-      // Extract useful info based on transaction type
-      let source = '';
-      let destination = '';
-      let amount = 0;
-      let tokenInfo = undefined;
-
-      // Check for native transfers
-      if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
-        source = tx.nativeTransfers[0].fromUserAccount;
-        destination = tx.nativeTransfers[0].toUserAccount;
-        amount = tx.nativeTransfers[0].amount / 1e9; // Convert lamports to SOL
-      } 
-      // Check for token transfers
-      else if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
-        source = tx.tokenTransfers[0].fromUserAccount;
-        destination = tx.tokenTransfers[0].toUserAccount;
-        amount = tx.tokenTransfers[0].tokenAmount;
-        tokenInfo = {
-          mint: tx.tokenTransfers[0].mint,
-          symbol: tx.tokenTransfers[0].symbol || 'Unknown',
-          decimals: tx.tokenTransfers[0].decimals || 0
-        };
+      if (!signatures.length) {
+        return [];
       }
 
-      return {
-        signature: signatures[index].signature,
-        type: tx.type,
-        blockTime: signatures[index].blockTime || 0,
-        confirmationStatus: signatures[index].confirmationStatus || 'finalized',
-        fee: tx.fee || 0,
-        source,
-        destination,
-        amount,
-        tokenInfo
-      };
-    });
+      // Get enhanced transaction data from Helius
+      const parsedTxs = await axios.post(
+        `https://api.helius.xyz/v0/transactions/?api-key=${HELIUS_API_KEY}`, 
+        { transactions: signatures.map(sig => sig.signature) }
+      );
 
-    return transactions;
-  } catch (error) {
-    console.error('Error fetching transactions:', error);
-    throw error;
-  }
+      const transactions = parsedTxs.data.map((tx: any, index: number) => {
+        // Extract useful info based on transaction type
+        let source = '';
+        let destination = '';
+        let amount = 0;
+        let tokenInfo = undefined;
+
+        // Check for native transfers
+        if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
+          source = tx.nativeTransfers[0].fromUserAccount;
+          destination = tx.nativeTransfers[0].toUserAccount;
+          amount = tx.nativeTransfers[0].amount / 1e9; // Convert lamports to SOL
+        } 
+        // Check for token transfers
+        else if (tx.tokenTransfers && tx.tokenTransfers.length > 0) {
+          source = tx.tokenTransfers[0].fromUserAccount;
+          destination = tx.tokenTransfers[0].toUserAccount;
+          amount = tx.tokenTransfers[0].tokenAmount;
+          tokenInfo = {
+            mint: tx.tokenTransfers[0].mint,
+            symbol: tx.tokenTransfers[0].symbol || 'Unknown',
+            decimals: tx.tokenTransfers[0].decimals || 0
+          };
+        }
+
+        return {
+          signature: signatures[index].signature,
+          type: tx.type,
+          blockTime: signatures[index].blockTime || 0,
+          confirmationStatus: signatures[index].confirmationStatus || 'finalized',
+          fee: tx.fee || 0,
+          source,
+          destination,
+          amount,
+          tokenInfo
+        };
+      });
+
+      return transactions;
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      throw error;
+    }
+  });
 }
 
 export interface TokenBalance {
@@ -185,72 +227,77 @@ export interface TokenBalance {
   tokenProgram: string;
 }
 
+// Update fetchTokenBalances to use rate limiting and retries
 export async function fetchTokenBalances(address: string): Promise<TokenBalance[]> {
-  try {
-    const response = await axios.post(
-      HELIUS_RPC_URL,
-      {
-        jsonrpc: "2.0",
-        id: "token-balances",
-        method: "getTokenAccountsByOwner",
-        params: [
-          address,
-          {
-            programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-          },
-          {
-            encoding: "jsonParsed"
-          }
-        ],
+  return retryWithBackoff(async () => {
+    try {
+      const response = await axios.post(
+        HELIUS_RPC_URL,
+        {
+          jsonrpc: "2.0",
+          id: "token-balances",
+          method: "getTokenAccountsByOwner",
+          params: [
+            address,
+            {
+              programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+            },
+            {
+              encoding: "jsonParsed"
+            }
+          ],
+        }
+      );
+
+      if (response.data.error) {
+        throw new Error(response.data.error.message);
       }
-    );
 
-    if (response.data.error) {
-      throw new Error(response.data.error.message);
-    }
+      // Map token accounts to balances
+      const balances = response.data.result.value.map((account: any) => ({
+        mint: account.account.data.parsed.info.mint,
+        amount: account.account.data.parsed.info.tokenAmount.amount,
+        decimals: account.account.data.parsed.info.tokenAmount.decimals,
+        uiAmount: account.account.data.parsed.info.tokenAmount.uiAmount,
+        tokenProgram: account.account.owner,
+      }));
 
-    // Fetch token metadata to enhance the response
-    const balances = response.data.result.value.map((account: any) => ({
-      mint: account.account.data.parsed.info.mint,
-      amount: account.account.data.parsed.info.tokenAmount.amount,
-      decimals: account.account.data.parsed.info.tokenAmount.decimals,
-      uiAmount: account.account.data.parsed.info.tokenAmount.uiAmount,
-      tokenProgram: account.account.owner,
-    }));
-
-    // Get token metadata if available
-    const mints = balances.map((balance: TokenBalance) => balance.mint);
-    if (mints.length > 0) {
-      try {
-        const tokenInfoResponse = await axios.get(
-          `https://api.helius.xyz/v0/tokens/metadata?api-key=${HELIUS_API_KEY}&mints=${mints.join(',')}`
-        );
-        
-        // Enhance token balances with metadata
-        return balances.map((balance: TokenBalance) => {
-          const metadata = tokenInfoResponse.data.find((t: any) => t.mint === balance.mint);
-          if (metadata) {
-            return {
-              ...balance,
-              symbol: metadata.symbol,
-              name: metadata.name,
-              logo: metadata.images?.large || metadata.images?.small,
-              price: metadata.price,
-              value: balance.uiAmount * (metadata.price || 0)
-            };
-          }
-          return balance;
-        });
-      } catch (error) {
-        console.error('Error fetching token metadata:', error);
+      // Get token metadata if available
+      const mints = balances.map((balance: TokenBalance) => balance.mint);
+      if (mints.length > 0) {
+        try {
+          const tokenInfoResponse = await axios.get(
+            `https://api.helius.xyz/v0/tokens/metadata?api-key=${HELIUS_API_KEY}&mints=${mints.join(',')}`
+          );
+          
+          // Enhance token balances with metadata
+          return balances.map((balance: TokenBalance) => {
+            const metadata = tokenInfoResponse.data.find((t: any) => t.mint === balance.mint);
+            if (metadata) {
+              return {
+                ...balance,
+                symbol: metadata.symbol,
+                name: metadata.name,
+                logo: metadata.images?.large || metadata.images?.small,
+                price: metadata.price,
+                value: balance.uiAmount * (metadata.price || 0)
+              };
+            }
+            return balance;
+          });
+        } catch (error) {
+          console.error('Error fetching token metadata:', error);
+          // Return balances without metadata if metadata fetch fails
+          return balances;
+        }
       }
-    }
 
-    return balances;
-  } catch (error) {
-    console.error('Error fetching token balances:', error);
-    throw error;
-  }
+      return balances;
+    } catch (error) {
+      console.error('Error fetching token balances:', error);
+      throw error;
+    }
+  });
 }
 
 export interface TransactionFlow {
@@ -1185,19 +1232,16 @@ export async function analyzeEntityConnections(address: string): Promise<EntityC
   }
 }
 
+// Update getEnhancedWalletActivity to reduce concurrent requests
 export async function getEnhancedWalletActivity(address: string): Promise<EnhancedWalletActivity> {
   try {
-    const [
-      baseActivity,
-      fundingHistory,
-      activityPatterns,
-      entityConnections
-    ] = await Promise.all([
-      analyzeWalletActivity(address),
-      fetchFundingHistory(address),
-      analyzeActivityPatterns(address),
-      analyzeEntityConnections(address)
-    ]);
+    // Fetch base activity first
+    const baseActivity = await analyzeWalletActivity(address);
+    
+    // Then fetch additional data sequentially to avoid rate limits
+    const fundingHistory = await fetchFundingHistory(address);
+    const activityPatterns = await analyzeActivityPatterns(address);
+    const entityConnections = await analyzeEntityConnections(address);
 
     // Calculate overall risk score
     const riskFactors = [
