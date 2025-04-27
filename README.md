@@ -106,8 +106,8 @@ ChainProbe provides a suite of powerful analytics tools that leverage the Solana
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/Ge0frey/solana-forensic-analysis-tool.git
-cd solana-forensic-analysis-tool
+git clone https://github.com/Ge0frey/chainprobe.git
+cd chainprobe
 ```
 
 2. Install dependencies:
