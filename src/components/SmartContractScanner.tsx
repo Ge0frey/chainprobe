@@ -51,7 +51,6 @@ export default function SmartContractScanner() {
           lastInteraction: '2024-03-15T10:30:00Z',
           totalValue: 50000
         },
-        // Add more mock data as needed
       ]);
       setLoading(false);
     }, 1500);

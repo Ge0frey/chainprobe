@@ -52,7 +52,6 @@ export default function BridgeMonitor() {
           riskScore: 0.8,
           bridgeProtocol: 'Wormhole'
         },
-        // Add more mock data as needed
       ]);
       
       setAlerts([
@@ -63,7 +62,6 @@ export default function BridgeMonitor() {
           timestamp: '2024-03-15T10:30:00Z',
           relatedTxs: ['bridge_tx_1']
         },
-        // Add more mock alerts
       ]);
       
       setLoading(false);
