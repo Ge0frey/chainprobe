@@ -163,17 +163,6 @@ The application is configured for easy deployment on platforms like Vercel or Ne
 3. Set the publish directory to `dist`
 4. Add the environment variables from your `.env` file
 
-### Docker
-A Dockerfile is provided for containerized deployment:
-
-```bash
-# Build the Docker image
-docker build -t chainprobe .
-
-# Run the container
-docker run -p 3000:80 chainprobe
-```
-
 ## 💻 Usage Guide
 
 ### Dashboard
