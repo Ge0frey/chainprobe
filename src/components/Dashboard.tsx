@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { fetchWalletTransactions, fetchTokenBalances, HeliusTransaction, fetchEnhancedTransaction, EnhancedTransaction } from '../services/solana';
+import { getComprehensiveRiskAnalysis } from '../services/webacy';
 import { Spinner } from './ui/Spinner';
+import { RiskScoreCard } from './ui/RiskScoreCard';
 import { 
   RiFlowChart, 
   RiWalletLine, 
@@ -194,6 +196,16 @@ export default function Dashboard() {
   } = useQuery({
     queryKey: ['token-balances', currentAddress],
     queryFn: () => currentAddress ? fetchTokenBalances(currentAddress) : null,
+    enabled: !!currentAddress,
+  });
+
+  // Add risk analysis query
+  const {
+    data: riskAnalysis,
+    isLoading: riskLoading,
+  } = useQuery({
+    queryKey: ['risk-analysis', currentAddress],
+    queryFn: () => currentAddress ? getComprehensiveRiskAnalysis(currentAddress) : null,
     enabled: !!currentAddress,
   });
 
@@ -790,6 +802,22 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Risk Analysis Section */}
+        {currentAddress && (
+          <div className="lg:col-span-1">
+            <RiskScoreCard
+              score={riskAnalysis?.overallRiskScore || 0}
+              loading={riskLoading}
+              details={riskAnalysis?.threatRisks?.details}
+              threatRisks={riskAnalysis?.threatRisks}
+              sanctionChecks={riskAnalysis?.sanctionChecks}
+              approvalRisks={riskAnalysis?.approvalRisks}
+              exposureRisk={riskAnalysis?.exposureRisk}
+              contractRisk={riskAnalysis?.contractRisk}
+            />
           </div>
         )}
       </div>
