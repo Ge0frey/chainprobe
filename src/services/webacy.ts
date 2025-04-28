@@ -14,7 +14,7 @@ const webacyApi = axios.create({
   }
 });
 
-interface ThreatRiskResponse {
+export interface ThreatRiskResponse {
   riskScore: number;
   flags: string[];
   details: {
@@ -24,7 +24,7 @@ interface ThreatRiskResponse {
   }[];
 }
 
-interface SanctionCheckResponse {
+export interface SanctionCheckResponse {
   isSanctioned: boolean;
   details: {
     source: string;
@@ -33,7 +33,7 @@ interface SanctionCheckResponse {
   }[];
 }
 
-interface ApprovalRiskResponse {
+export interface ApprovalRiskResponse {
   approvals: {
     spender: string;
     riskScore: number;
@@ -41,7 +41,7 @@ interface ApprovalRiskResponse {
   }[];
 }
 
-interface ExposureRiskResponse {
+export interface ExposureRiskResponse {
   exposureScore: number;
   riskExposures: {
     address: string;
@@ -50,7 +50,7 @@ interface ExposureRiskResponse {
   }[];
 }
 
-interface ContractRiskResponse {
+export interface ContractRiskResponse {
   riskScore: number;
   flags: string[];
   analysis: {

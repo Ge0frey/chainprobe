@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { RiShieldLine, RiAlertLine, RiInformationLine, RiBarChartLine, RiExchangeLine, RiTimeLine } from 'react-icons/ri';
+import { ThreatRiskResponse, SanctionCheckResponse, ApprovalRiskResponse, ExposureRiskResponse, ContractRiskResponse } from '../../services/webacy';
 
 interface RiskScoreCardProps {
   score: number;
@@ -10,9 +11,32 @@ interface RiskScoreCardProps {
     severity: 'low' | 'medium' | 'high';
   }[];
   className?: string;
+  threatRisks?: ThreatRiskResponse;
+  sanctionChecks?: SanctionCheckResponse;
+  approvalRisks?: ApprovalRiskResponse;
+  exposureRisk?: ExposureRiskResponse;
+  contractRisk?: ContractRiskResponse;
 }
 
-export function RiskScoreCard({ score, loading, details, className = '' }: RiskScoreCardProps) {
+interface RiskFactor {
+  name: string;
+  score: number;
+  icon: JSX.Element;
+  description: string;
+  details: string[];
+}
+
+export function RiskScoreCard({ 
+  score, 
+  loading, 
+  details, 
+  className = '',
+  threatRisks,
+  sanctionChecks,
+  approvalRisks,
+  exposureRisk,
+  contractRisk
+}: RiskScoreCardProps) {
   const getRiskLevel = (score: number) => {
     if (score <= 0.3) return { 
       text: 'LOW', 
@@ -36,27 +60,34 @@ export function RiskScoreCard({ score, loading, details, className = '' }: RiskS
 
   const riskLevel = getRiskLevel(score);
 
-  // Risk factor categories with their weights
-  const riskFactors = [
+  // Risk factor categories using actual API data
+  const riskFactors: RiskFactor[] = [
     {
       name: 'Transaction Patterns',
-      score: score * 0.8 + Math.random() * 0.2, // Simulated sub-scores
+      score: threatRisks?.riskScore || 0,
       icon: <RiBarChartLine />,
-      description: 'Based on transaction frequency and amounts'
+      description: 'Based on transaction frequency and amounts',
+      details: threatRisks?.flags || []
     },
     {
-      name: 'Interaction History',
-      score: score * 0.7 + Math.random() * 0.3,
+      name: 'Interaction Risk',
+      score: exposureRisk?.exposureScore || 0,
       icon: <RiExchangeLine />,
-      description: 'Based on counterparty risk analysis'
+      description: 'Based on counterparty risk analysis',
+      details: exposureRisk?.riskExposures.map(exposure => `${exposure.type}: ${(exposure.riskScore * 100).toFixed(0)}%`) || []
     },
     {
-      name: 'Temporal Patterns',
-      score: score * 0.9 + Math.random() * 0.1,
+      name: 'Contract Safety',
+      score: contractRisk?.riskScore || 0,
       icon: <RiTimeLine />,
-      description: 'Based on timing and frequency of activities'
+      description: 'Based on smart contract analysis',
+      details: contractRisk?.flags || []
     }
   ];
+
+  // Additional risk indicators
+  const hasHighRiskApprovals = approvalRisks?.approvals.some(approval => approval.riskScore > 0.7) || false;
+  const isSanctioned = sanctionChecks?.isSanctioned || false;
 
   return (
     <motion.div 
@@ -117,6 +148,15 @@ export function RiskScoreCard({ score, loading, details, className = '' }: RiskS
               <p className="text-sm text-gray-400">
                 {riskLevel.description}
               </p>
+              {(isSanctioned || hasHighRiskApprovals) && (
+                <div className="mt-2 flex items-center gap-2 text-red-500 text-sm">
+                  <RiAlertLine className="flex-shrink-0" />
+                  <span>
+                    {isSanctioned && 'Address is sanctioned. '}
+                    {hasHighRiskApprovals && 'High-risk contract approvals detected.'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -160,6 +200,21 @@ export function RiskScoreCard({ score, loading, details, className = '' }: RiskS
                     />
                   </div>
                   <p className="text-xs text-gray-400 mt-2">{factor.description}</p>
+                  {factor.details.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {factor.details.slice(0, 3).map((detail, i) => (
+                        <div key={i} className="text-xs text-gray-500 flex items-center gap-1">
+                          <span className="w-1 h-1 rounded-full bg-gray-400"></span>
+                          <span>{detail}</span>
+                        </div>
+                      ))}
+                      {factor.details.length > 3 && (
+                        <div className="text-xs text-gray-500">
+                          +{factor.details.length - 3} more indicators
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </div>
