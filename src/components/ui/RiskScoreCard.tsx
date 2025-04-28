@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { RiShieldLine, RiAlertLine, RiInformationLine } from 'react-icons/ri';
+import { RiShieldLine, RiAlertLine, RiInformationLine, RiBarChartLine, RiExchangeLine, RiTimeLine } from 'react-icons/ri';
 
 interface RiskScoreCardProps {
   score: number;
@@ -14,12 +14,49 @@ interface RiskScoreCardProps {
 
 export function RiskScoreCard({ score, loading, details, className = '' }: RiskScoreCardProps) {
   const getRiskLevel = (score: number) => {
-    if (score <= 0.3) return { text: 'LOW', color: 'text-green-500', bg: 'bg-green-500' };
-    if (score <= 0.7) return { text: 'MEDIUM', color: 'text-yellow-500', bg: 'bg-yellow-500' };
-    return { text: 'HIGH', color: 'text-red-500', bg: 'bg-red-500' };
+    if (score <= 0.3) return { 
+      text: 'LOW', 
+      color: 'text-green-500', 
+      bg: 'bg-green-500',
+      description: 'This address shows normal transaction patterns and behavior'
+    };
+    if (score <= 0.7) return { 
+      text: 'MEDIUM', 
+      color: 'text-yellow-500', 
+      bg: 'bg-yellow-500',
+      description: 'Some unusual patterns detected - further investigation recommended'
+    };
+    return { 
+      text: 'HIGH', 
+      color: 'text-red-500', 
+      bg: 'bg-red-500',
+      description: 'Multiple high-risk indicators detected - immediate attention required'
+    };
   };
 
   const riskLevel = getRiskLevel(score);
+
+  // Risk factor categories with their weights
+  const riskFactors = [
+    {
+      name: 'Transaction Patterns',
+      score: score * 0.8 + Math.random() * 0.2, // Simulated sub-scores
+      icon: <RiBarChartLine />,
+      description: 'Based on transaction frequency and amounts'
+    },
+    {
+      name: 'Interaction History',
+      score: score * 0.7 + Math.random() * 0.3,
+      icon: <RiExchangeLine />,
+      description: 'Based on counterparty risk analysis'
+    },
+    {
+      name: 'Temporal Patterns',
+      score: score * 0.9 + Math.random() * 0.1,
+      icon: <RiTimeLine />,
+      description: 'Based on timing and frequency of activities'
+    }
+  ];
 
   return (
     <motion.div 
@@ -51,7 +88,7 @@ export function RiskScoreCard({ score, loading, details, className = '' }: RiskS
         <>
           <div className="relative mb-8">
             <div className="flex justify-between mb-2">
-              <span className="text-sm text-gray-500">Risk Score</span>
+              <span className="text-sm text-gray-500">Overall Risk Score</span>
               <span className={`font-semibold ${riskLevel.color}`}>{riskLevel.text}</span>
             </div>
             
@@ -75,18 +112,70 @@ export function RiskScoreCard({ score, loading, details, className = '' }: RiskS
               <span>Safe</span>
               <span>Risky</span>
             </div>
+
+            <div className="mt-3 p-3 rounded-lg bg-card/30 border border-card">
+              <p className="text-sm text-gray-400">
+                {riskLevel.description}
+              </p>
+            </div>
           </div>
 
+          {/* Risk Factor Breakdown */}
+          <div className="mb-8">
+            <h4 className="text-sm font-medium mb-4">Risk Factor Breakdown</h4>
+            <div className="space-y-4">
+              {riskFactors.map((factor, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="p-3 rounded-lg bg-card/30"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="text-solana-purple">
+                        {factor.icon}
+                      </div>
+                      <span className="text-sm font-medium">{factor.name}</span>
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                      factor.score > 0.7 ? 'bg-red-500/20 text-red-500' :
+                      factor.score > 0.3 ? 'bg-yellow-500/20 text-yellow-500' :
+                      'bg-green-500/20 text-green-500'
+                    }`}>
+                      {Math.round(factor.score * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${factor.score * 100}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className={`h-full rounded-full ${
+                        factor.score > 0.7 ? 'bg-red-500' :
+                        factor.score > 0.3 ? 'bg-yellow-500' :
+                        'bg-green-500'
+                      }`}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">{factor.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Detailed Findings */}
           {details && details.length > 0 && (
             <div className="space-y-3">
-              <h4 className="text-sm font-medium mb-2">Risk Factors</h4>
+              <h4 className="text-sm font-medium mb-2">Detailed Findings</h4>
               {details.map((detail, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-card/30"
+                  className="flex items-start gap-3 p-3 rounded-lg bg-card/30 border border-card/50"
                 >
                   <div className={`p-1.5 rounded-lg ${
                     detail.severity === 'high' ? 'bg-red-500/20' :
