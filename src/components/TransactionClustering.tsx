@@ -33,6 +33,8 @@ import {
   RiGroupLine,
   RiFlowChart
 } from 'react-icons/ri';
+import { getComprehensiveRiskAnalysis } from '../services/webacy';
+import { WebacyBranding } from './ui/WebacyBranding';
 
 // Enhanced cluster node component with better visuals
 const ClusterNode = ({ data, selected }: { data: any; selected: boolean }) => {
@@ -252,6 +254,22 @@ export default function TransactionClustering() {
       selectedDepth === 'advanced' ? 3 : selectedDepth === 'medium' ? 2 : 1
     ) : null,
     enabled: !!currentAddress
+  });
+
+  // Add Webacy risk analysis query
+  const { 
+    data: riskAnalysis, 
+    isLoading: riskLoading 
+  } = useQuery({
+    queryKey: ['risk-analysis', selectedCluster, clusters],
+    queryFn: async () => {
+      if (!selectedCluster || !clusters) return null;
+      const cluster = clusters.find(c => c.id === selectedCluster);
+      if (!cluster?.addresses?.[0]) return null;
+      // Use the first address in the cluster for risk analysis
+      return getComprehensiveRiskAnalysis(cluster.addresses[0]);
+    },
+    enabled: !!selectedCluster && !!clusters
   });
 
   // Enhanced effect to transform cluster data into visualization
@@ -475,9 +493,7 @@ export default function TransactionClustering() {
                 >
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-semibold">Cluster Details</h2>
-                    <span className={`px-3 py-1 rounded-full text-sm ${clusterStats?.riskLevel.color}`}>
-                      {clusterStats?.riskLevel.text} Risk
-                    </span>
+                    <WebacyBranding size="md" />
                   </div>
                   
                   {/* Risk assessment section */}
@@ -485,26 +501,35 @@ export default function TransactionClustering() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-muted-foreground">Risk Score</span>
                       <span className={`font-medium ${
-                        selectedClusterDetails.suspiciousScore > 0.7 ? 'text-red-500' : 
-                        selectedClusterDetails.suspiciousScore > 0.3 ? 'text-yellow-500' : 
+                        (riskAnalysis?.overallRiskScore ?? 0) > 0.7 ? 'text-red-500' : 
+                        (riskAnalysis?.overallRiskScore ?? 0) > 0.3 ? 'text-yellow-500' : 
                         'text-green-500'
                       }`}>
-                        {(selectedClusterDetails.suspiciousScore * 100).toFixed(0)}%
+                        {riskAnalysis ? `${(riskAnalysis.overallRiskScore * 100).toFixed(0)}%` : 'Analyzing...'}
                       </span>
                     </div>
                     <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div 
                         className="h-full transition-all duration-300"
                         style={{ 
-                          width: `${selectedClusterDetails.suspiciousScore * 100}%`,
-                          background: `linear-gradient(90deg, rgb(20, 241, 149), rgb(255, 159, 28), rgb(239, 68, 68) ${selectedClusterDetails.suspiciousScore * 100}%, transparent)`
+                          width: `${(riskAnalysis?.overallRiskScore || 0) * 100}%`,
+                          background: `linear-gradient(90deg, rgb(20, 241, 149), rgb(255, 159, 28), rgb(239, 68, 68))`
                         }}
                       />
                     </div>
-                    {clusterStats?.riskLevel && (
-                      <p className="text-xs mt-2 text-muted-foreground">
-                        {clusterStats.riskLevel.description}
-                      </p>
+                    {riskAnalysis?.threatRisks?.details && (
+                      <div className="mt-2 space-y-2">
+                        {riskAnalysis.threatRisks.details.slice(0, 2).map((detail, idx) => (
+                          <div key={idx} className="text-xs text-muted-foreground flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              detail.severity === 'high' ? 'bg-red-500' :
+                              detail.severity === 'medium' ? 'bg-yellow-500' :
+                              'bg-green-500'
+                            }`} />
+                            <span>{detail.description}</span>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
 

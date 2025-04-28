@@ -14,6 +14,8 @@ import {
 } from 'react-icons/ri';
 import { detectTransactionPatterns, generateRiskReport } from '../services/patternDetection';
 import { Spinner } from './ui/Spinner';
+import { getComprehensiveRiskAnalysis } from '../services/webacy';
+import { WebacyBranding } from './ui/WebacyBranding';
 
 const severityColors = {
   low: {
@@ -64,6 +66,15 @@ export default function PatternAnalysis() {
     enabled: !!currentAddress && !!patterns
   });
 
+  const { 
+    data: webacyRisk, 
+    isLoading: webacyLoading 
+  } = useQuery({
+    queryKey: ['webacy-risk', currentAddress],
+    queryFn: () => currentAddress ? getComprehensiveRiskAnalysis(currentAddress) : null,
+    enabled: !!currentAddress
+  });
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchAddress) {
@@ -71,7 +82,7 @@ export default function PatternAnalysis() {
     }
   };
 
-  const isLoading = patternsLoading || reportLoading;
+  const isLoading = patternsLoading || reportLoading || webacyLoading;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -158,10 +169,14 @@ export default function PatternAnalysis() {
           >
             <div className="glass-panel overflow-hidden h-full">
               <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <RiShieldLine className="text-solana-purple text-xl" />
-                  <span>Risk Assessment</span>
-                </h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <RiShieldLine className="text-solana-purple text-xl" />
+                    <span>Risk Assessment</span>
+                  </h3>
+                  <WebacyBranding size="md" />
+                </div>
+                
                 <div className="space-y-6">
                   <div>
                     <div className="flex justify-between items-center mb-2">
@@ -173,56 +188,98 @@ export default function PatternAnalysis() {
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", delay: 0.4 }}
                         className={`px-3 py-1 text-sm font-bold rounded-full ${
-                          riskReport.overallRiskScore > 0.7 
+                          webacyRisk?.overallRiskScore > 0.7 
                             ? severityColors.high.bg + ' ' + severityColors.high.text
-                            : riskReport.overallRiskScore > 0.4
+                            : webacyRisk?.overallRiskScore > 0.4
                               ? severityColors.medium.bg + ' ' + severityColors.medium.text
                               : severityColors.low.bg + ' ' + severityColors.low.text
                         }`}
                       >
-                        {Math.round(riskReport.overallRiskScore * 100)}%
+                        {webacyRisk ? `${Math.round(webacyRisk.overallRiskScore * 100)}%` : 'Analyzing...'}
                       </motion.span>
                     </div>
+                    
                     <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: `${riskReport.overallRiskScore * 100}%` }}
+                        animate={{ width: `${(webacyRisk?.overallRiskScore || 0) * 100}%` }}
                         transition={{ duration: 1, delay: 0.5 }}
-                        className="bg-gradient-to-r from-blue-500 via-yellow-500 to-red-500 h-full rounded-full"
+                        className="h-full rounded-full"
+                        style={{
+                          background: `linear-gradient(90deg, 
+                            rgb(20, 241, 149) 0%, 
+                            rgb(255, 159, 28) 50%, 
+                            rgb(239, 68, 68) 100%
+                          )`
+                        }}
                       />
                     </div>
                   </div>
 
-                  {/* Risk Factors */}
-                  <div className="space-y-4">
-                    {riskReport.riskFactors.map((factor, index) => (
-                      <motion.div 
-                        key={index} 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.3 + (index * 0.1) }}
-                        className="glass-card p-4"
-                      >
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium text-white">
-                            {factor.name}
-                          </span>
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                            factor.score > 0.7 
-                              ? severityColors.high.bg + ' ' + severityColors.high.text
-                              : factor.score > 0.4
-                                ? severityColors.medium.bg + ' ' + severityColors.medium.text
-                                : severityColors.low.bg + ' ' + severityColors.low.text
-                          }`}>
-                            {Math.round(factor.score * 100)}%
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-400">
-                          {factor.description}
-                        </p>
-                      </motion.div>
-                    ))}
-                  </div>
+                  {/* Webacy Risk Factors */}
+                  {webacyRisk && (
+                    <div className="space-y-4">
+                      {webacyRisk.threatRisks?.details?.map((detail, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className={`p-3 rounded-lg ${
+                            detail.severity === 'high' ? severityColors.high.bg :
+                            detail.severity === 'medium' ? severityColors.medium.bg :
+                            severityColors.low.bg
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <RiAlertLine className={
+                              detail.severity === 'high' ? severityColors.high.text :
+                              detail.severity === 'medium' ? severityColors.medium.text :
+                              severityColors.low.text
+                            } />
+                            <span className="font-medium">{detail.category}</span>
+                          </div>
+                          <p className="text-sm text-gray-300">{detail.description}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Pattern-based Risk Factors */}
+                  {riskReport && (
+                    <div className="mt-6">
+                      <h4 className="text-sm font-medium mb-4">Pattern Analysis</h4>
+                      <div className="space-y-4">
+                        {riskReport.riskFactors.map((factor, index) => (
+                          <motion.div 
+                            key={index} 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.3 + (index * 0.1) }}
+                            className="glass-card p-4"
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-sm font-medium text-white">
+                                {factor.name}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                factor.score > 0.7 
+                                  ? severityColors.high.bg + ' ' + severityColors.high.text
+                                  : factor.score > 0.4
+                                    ? severityColors.medium.bg + ' ' + severityColors.medium.text
+                                    : severityColors.low.bg + ' ' + severityColors.low.text
+                              }`}>
+                                {Math.round(factor.score * 100)}%
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-400">
+                              {factor.description}
+                            </p>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Recommendations */}
                   {riskReport.recommendations.length > 0 && (
