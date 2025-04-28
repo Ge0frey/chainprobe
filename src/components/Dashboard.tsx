@@ -71,6 +71,28 @@ interface SolanaNetworkStats {
   foundationRate?: string;
 }
 
+// Add these type definitions near the top of the file, after the imports
+interface TokenTransfer {
+  fromUserAccount: string;
+  toUserAccount: string;
+  tokenAmount: string;
+  mint: string;
+}
+
+interface NativeTransfer {
+  fromUserAccount: string;
+  toUserAccount: string;
+  amount: number;
+}
+
+interface Token {
+  mint: string;
+  logo?: string;
+  symbol?: string;
+  uiAmount: string;
+  value?: number;
+}
+
 export default function Dashboard() {
   const [searchInput, setSearchInput] = useState('');
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
@@ -552,8 +574,9 @@ export default function Dashboard() {
         {/* Results display */}
         {currentAddress && !txLoading && !txError && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Transactions */}
-            <div className="lg:col-span-2">
+            {/* Left column - Transactions and Transaction Details */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Transactions */}
               {transactions && transactions.length > 0 ? (
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
@@ -630,69 +653,8 @@ export default function Dashboard() {
                   <p className="text-gray-600 dark:text-gray-400">No transactions found for this address</p>
                 </div>
               ) : null}
-            </div>
 
-            {/* Sidebar with token balances and transaction details */}
-            <div className="space-y-6">
-              {/* Token Balances */}
-              {tokenBalances && tokenBalances.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="glass-panel overflow-hidden rounded-xl"
-                >
-                  <div className="p-4 border-b border-gray-200/70 dark:border-gray-700/70">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Token Holdings</h2>
-                  </div>
-                  <div className="p-4">
-                    <ul className="divide-y divide-gray-200/70 dark:divide-gray-700/70">
-                      {tokenBalances.map((token) => (
-                        <motion.li 
-                          key={token.mint} 
-                          className="py-3"
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.1 * tokenBalances.indexOf(token) }}
-                        >
-                          <div className="flex items-center space-x-3">
-                            {token.logo ? (
-                              <div className="flex-shrink-0 h-8 w-8 p-1 bg-white dark:bg-gray-700 rounded-full shadow-sm">
-                                <img 
-                                  src={token.logo} 
-                                  alt={token.symbol || 'token'} 
-                                  className="h-full w-full rounded-full"
-                                  onError={(e) => {
-                                    // Handle image load errors
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600"></div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                {token.symbol || token.mint.slice(0, 8)}...
-                              </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                {token.uiAmount}
-                              </p>
-                            </div>
-                            {token.value !== undefined && (
-                              <div className="inline-flex items-center text-sm font-medium text-gray-900 dark:text-white">
-                                ${token.value.toFixed(2)}
-                              </div>
-                            )}
-                          </div>
-                        </motion.li>
-                      ))}
-                    </ul>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Transaction Details */}
+              {/* Transaction Details - Now below transactions */}
               {selectedTransaction && (detailsLoading ? (
                 <div className="text-center glass-panel p-6 rounded-xl">
                   <Spinner />
@@ -730,7 +692,7 @@ export default function Dashboard() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200/70 dark:divide-gray-700/70">
-                              {transactionDetails.nativeTransfers.map((transfer, idx) => (
+                              {transactionDetails.nativeTransfers.map((transfer: NativeTransfer, idx: number) => (
                                 <tr key={idx}>
                                   <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-mono">
                                     {transfer.fromUserAccount.slice(0, 6)}...{transfer.fromUserAccount.slice(-6)}
@@ -763,7 +725,7 @@ export default function Dashboard() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200/70 dark:divide-gray-700/70">
-                              {transactionDetails.tokenTransfers.map((transfer, idx) => (
+                              {transactionDetails.tokenTransfers.map((transfer: TokenTransfer, idx: number) => (
                                 <tr key={idx}>
                                   <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-mono">
                                     {transfer.fromUserAccount.slice(0, 6)}...{transfer.fromUserAccount.slice(-6)}
@@ -802,22 +764,78 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
 
-        {/* Risk Analysis Section */}
-        {currentAddress && (
-          <div className="lg:col-span-1">
-            <RiskScoreCard
-              score={riskAnalysis?.overallRiskScore || 0}
-              loading={riskLoading}
-              details={riskAnalysis?.threatRisks?.details}
-              threatRisks={riskAnalysis?.threatRisks}
-              sanctionChecks={riskAnalysis?.sanctionChecks}
-              approvalRisks={riskAnalysis?.approvalRisks}
-              exposureRisk={riskAnalysis?.exposureRisk}
-              contractRisk={riskAnalysis?.contractRisk}
-            />
+            {/* Right column - Token Holdings and Risk Assessment */}
+            <div className="space-y-6">
+              {/* Token Balances */}
+              {tokenBalances && tokenBalances.length > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="glass-panel overflow-hidden rounded-xl"
+                >
+                  <div className="p-4 border-b border-gray-200/70 dark:border-gray-700/70">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Token Holdings</h2>
+                  </div>
+                  <div className="p-4">
+                    <ul className="divide-y divide-gray-200/70 dark:divide-gray-700/70">
+                      {tokenBalances.map((token: Token) => (
+                        <motion.li 
+                          key={token.mint} 
+                          className="py-3"
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.1 * tokenBalances.indexOf(token) }}
+                        >
+                          <div className="flex items-center space-x-3">
+                            {token.logo ? (
+                              <div className="flex-shrink-0 h-8 w-8 p-1 bg-white dark:bg-gray-700 rounded-full shadow-sm">
+                                <img 
+                                  src={token.logo} 
+                                  alt={token.symbol || 'token'} 
+                                  className="h-full w-full rounded-full"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600"></div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {token.symbol || token.mint.slice(0, 8)}...
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                {token.uiAmount}
+                              </p>
+                            </div>
+                            {token.value !== undefined && (
+                              <div className="inline-flex items-center text-sm font-medium text-gray-900 dark:text-white">
+                                ${token.value.toFixed(2)}
+                              </div>
+                            )}
+                          </div>
+                        </motion.li>
+                      ))}
+                    </ul>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Risk Assessment */}
+              <RiskScoreCard
+                score={riskAnalysis?.overallRiskScore || 0}
+                loading={riskLoading}
+                details={riskAnalysis?.threatRisks?.details}
+                threatRisks={riskAnalysis?.threatRisks}
+                sanctionChecks={riskAnalysis?.sanctionChecks}
+                approvalRisks={riskAnalysis?.approvalRisks}
+                exposureRisk={riskAnalysis?.exposureRisk}
+                contractRisk={riskAnalysis?.contractRisk}
+              />
+            </div>
           </div>
         )}
       </div>
