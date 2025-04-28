@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { RiExchangeLine, RiAlertLine, RiTimeLine, RiArrowRightLine } from 'react-icons/ri';
+import { RiExchangeLine, RiAlertLine, RiTimeLine, RiArrowRightLine, RiShieldLine } from 'react-icons/ri';
 import { Spinner } from './ui/Spinner';
+import { WebacyBranding } from './ui/WebacyBranding';
+import { getComprehensiveRiskAnalysis } from '../services/webacy';
 
 interface BridgeTransaction {
   id: string;
@@ -27,18 +30,18 @@ interface BridgeAlert {
 
 export default function BridgeMonitor() {
   const [searchAddress, setSearchAddress] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [bridgeTransactions, setBridgeTransactions] = useState<BridgeTransaction[]>([]);
-  const [alerts, setAlerts] = useState<BridgeAlert[]>([]);
   const [selectedTx, setSelectedTx] = useState<BridgeTransaction | null>(null);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    // Simulated API call - replace with actual implementation
-    setTimeout(() => {
-      setBridgeTransactions([
+  // Query for bridge transactions
+  const {
+    data: bridgeTransactions,
+    isLoading: txLoading,
+    error: txError
+  } = useQuery({
+    queryKey: ['bridge-transactions', searchAddress],
+    queryFn: () => {
+      // Simulated API call - replace with actual implementation
+      return Promise.resolve([
         {
           id: 'bridge_tx_1',
           sourceChain: 'Solana',
@@ -53,8 +56,18 @@ export default function BridgeMonitor() {
           bridgeProtocol: 'Wormhole'
         },
       ]);
-      
-      setAlerts([
+    },
+    enabled: !!searchAddress
+  });
+
+  // Query for alerts
+  const {
+    data: alerts,
+    isLoading: alertsLoading
+  } = useQuery({
+    queryKey: ['bridge-alerts', searchAddress],
+    queryFn: () => {
+      return Promise.resolve([
         {
           type: 'Large Transfer',
           description: 'Unusually large amount bridged in a single transaction',
@@ -63,10 +76,28 @@ export default function BridgeMonitor() {
           relatedTxs: ['bridge_tx_1']
         },
       ]);
-      
-      setLoading(false);
-    }, 1500);
+    },
+    enabled: !!searchAddress
+  });
+
+  // Query for Webacy risk analysis
+  const {
+    data: riskAnalysis,
+    isLoading: riskLoading
+  } = useQuery({
+    queryKey: ['risk-analysis', selectedTx?.sourceAddress],
+    queryFn: () => selectedTx ? getComprehensiveRiskAnalysis(selectedTx.sourceAddress) : null,
+    enabled: !!selectedTx
+  });
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchAddress) {
+      setSelectedTx(null);
+    }
   };
+
+  const loading = txLoading || alertsLoading || riskLoading;
 
   const getSeverityColor = (severity: 'low' | 'medium' | 'high') => {
     switch (severity) {
@@ -135,9 +166,12 @@ export default function BridgeMonitor() {
             {/* Bridge Transactions List */}
             <div className="lg:col-span-2">
               <div className="glass-panel p-6">
-                <h2 className="text-xl font-semibold mb-4">Bridge Transactions</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">Bridge Transactions</h2>
+                  <WebacyBranding size="sm" />
+                </div>
                 <div className="space-y-4">
-                  {bridgeTransactions.map((tx) => (
+                  {bridgeTransactions?.map((tx) => (
                     <motion.div
                       key={tx.id}
                       whileHover={{ scale: 1.02 }}
@@ -181,89 +215,140 @@ export default function BridgeMonitor() {
               </div>
             </div>
 
-            {/* Alerts Panel */}
+            {/* Alerts and Risk Analysis Panel */}
             <div className="lg:col-span-1">
-              <div className="glass-panel p-6">
-                <h2 className="text-xl font-semibold mb-4">Bridge Alerts</h2>
-                <div className="space-y-4">
-                  {alerts.map((alert, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="glass-card p-4"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <RiAlertLine className={`text-xl ${getSeverityColor(alert.severity)}`} />
-                          <span className="font-semibold">{alert.type}</span>
-                        </div>
-                        <span className={`text-sm px-2 py-1 rounded-full ${getSeverityColor(alert.severity)} bg-opacity-20`}>
-                          {alert.severity}
+              {selectedTx ? (
+                <div className="space-y-6">
+                  {/* Risk Analysis */}
+                  <div className="glass-panel p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <RiShieldLine className="text-solana-purple" />
+                        <span>Risk Assessment</span>
+                      </h3>
+                      <WebacyBranding size="sm" />
+                    </div>
+
+                    {/* Risk Score */}
+                    <div className="mb-6">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm text-muted-foreground">Risk Score</span>
+                        <span className={`font-medium ${
+                          (riskAnalysis?.overallRiskScore ?? 0) > 0.7 ? 'text-red-500' : 
+                          (riskAnalysis?.overallRiskScore ?? 0) > 0.3 ? 'text-yellow-500' : 
+                          'text-green-500'
+                        }`}>
+                          {riskAnalysis ? `${(riskAnalysis.overallRiskScore * 100).toFixed(0)}%` : 'Analyzing...'}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {alert.description}
-                      </p>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(alert.timestamp).toLocaleString()}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              {selectedTx && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="glass-panel p-6 mt-6"
-                >
-                  <h3 className="text-lg font-semibold mb-4">Transaction Details</h3>
-                  <div className="space-y-4">
-                    <div className="glass-card p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <RiExchangeLine className="text-xl text-solana-purple" />
-                        <span className="text-sm font-semibold">Bridge Protocol</span>
-                      </div>
-                      <span className="text-lg">{selectedTx.bridgeProtocol}</span>
-                    </div>
-
-                    <div className="glass-card p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <RiAlertLine className="text-xl text-solana-teal" />
-                        <span className="text-sm font-semibold">Risk Score</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-solana-purple to-solana-teal h-2 rounded-full"
-                          style={{ width: `${selectedTx.riskScore * 100}%` }}
+                      <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full transition-all duration-300"
+                          style={{ 
+                            width: `${(riskAnalysis?.overallRiskScore || 0) * 100}%`,
+                            background: `linear-gradient(90deg, rgb(20, 241, 149), rgb(255, 159, 28), rgb(239, 68, 68))`
+                          }}
                         />
                       </div>
-                      <span className="text-sm text-muted-foreground mt-1">
-                        {(selectedTx.riskScore * 100).toFixed(0)}% Risk Level
-                      </span>
                     </div>
 
-                    <div className="glass-card p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <RiTimeLine className="text-xl text-solana-purple" />
-                        <span className="text-sm font-semibold">Addresses</span>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="text-xs">
-                          <span className="text-muted-foreground">From:</span>
-                          <div className="font-mono">{selectedTx.sourceAddress}</div>
+                    {/* Risk Factors */}
+                    <div className="space-y-4">
+                      {riskAnalysis?.threatRisks?.details?.map((detail, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className={`p-3 rounded-lg ${
+                            detail.severity === 'high' ? 'bg-red-500/20' :
+                            detail.severity === 'medium' ? 'bg-yellow-500/20' :
+                            'bg-green-500/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <RiAlertLine className={
+                              detail.severity === 'high' ? 'text-red-500' :
+                              detail.severity === 'medium' ? 'text-yellow-500' :
+                              'text-green-500'
+                            } />
+                            <span className="font-medium">{detail.category}</span>
+                          </div>
+                          <p className="text-sm text-gray-300">{detail.description}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bridge Alerts */}
+                  <div className="glass-panel p-6">
+                    <h2 className="text-xl font-semibold mb-4">Bridge Alerts</h2>
+                    <div className="space-y-4">
+                      {alerts?.map((alert, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="glass-card p-4"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <RiAlertLine className={`text-xl ${getSeverityColor(alert.severity)}`} />
+                              <span className="font-semibold">{alert.type}</span>
+                            </div>
+                            <span className={`text-sm px-2 py-1 rounded-full ${getSeverityColor(alert.severity)} bg-opacity-20`}>
+                              {alert.severity}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {alert.description}
+                          </p>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(alert.timestamp).toLocaleString()}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Transaction Details */}
+                  <div className="glass-panel p-6">
+                    <h3 className="text-lg font-semibold mb-4">Transaction Details</h3>
+                    <div className="space-y-4">
+                      <div className="glass-card p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <RiExchangeLine className="text-xl text-solana-purple" />
+                          <span className="text-sm font-semibold">Bridge Protocol</span>
                         </div>
-                        <div className="text-xs">
-                          <span className="text-muted-foreground">To:</span>
-                          <div className="font-mono">{selectedTx.destinationAddress}</div>
+                        <span className="text-lg">{selectedTx.bridgeProtocol}</span>
+                      </div>
+
+                      <div className="glass-card p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <RiTimeLine className="text-xl text-solana-teal" />
+                          <span className="text-sm font-semibold">Addresses</span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="text-xs">
+                            <span className="text-muted-foreground">From:</span>
+                            <div className="font-mono">{selectedTx.sourceAddress}</div>
+                          </div>
+                          <div className="text-xs">
+                            <span className="text-muted-foreground">To:</span>
+                            <div className="font-mono">{selectedTx.destinationAddress}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
+              ) : (
+                <div className="glass-panel p-6 flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">
+                    Select a transaction to view details
+                  </p>
+                </div>
               )}
             </div>
           </div>

@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { RiShieldCheckLine, RiAlertLine, RiFileCodeLine, RiTimeLine } from 'react-icons/ri';
 import { Spinner } from './ui/Spinner';
+import { WebacyBranding } from './ui/WebacyBranding';
+import { getComprehensiveRiskAnalysis, getContractRisk } from '../services/webacy';
 
 interface ContractRisk {
   address: string;
@@ -19,42 +22,53 @@ interface ContractRisk {
 
 export default function SmartContractScanner() {
   const [searchAddress, setSearchAddress] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [contractRisks, setContractRisks] = useState<ContractRisk[]>([]);
   const [selectedContract, setSelectedContract] = useState<ContractRisk | null>(null);
 
-  const handleSearch = async (e: React.FormEvent) => {
+  // Query for contract risks using Webacy
+  const { 
+    data: contractRisks,
+    isLoading: contractsLoading,
+    error: contractsError
+  } = useQuery({
+    queryKey: ['contract-risks', searchAddress],
+    queryFn: async () => {
+      if (!searchAddress) return [];
+      const risk = await getContractRisk(searchAddress);
+      return [{
+        address: searchAddress,
+        riskLevel: risk.riskScore > 0.7 ? 'high' : risk.riskScore > 0.3 ? 'medium' : 'low',
+        findings: risk.analysis.map(a => ({
+          type: a.category,
+          description: a.findings[0] || '',
+          severity: a.severity,
+          evidence: a.findings
+        })),
+        interactionCount: 0, // This would come from additional data
+        lastInteraction: new Date().toISOString(),
+        totalValue: 0 // This would come from additional data
+      }];
+    },
+    enabled: !!searchAddress
+  });
+
+  // Query for comprehensive risk analysis
+  const {
+    data: riskAnalysis,
+    isLoading: riskLoading
+  } = useQuery({
+    queryKey: ['risk-analysis', selectedContract?.address],
+    queryFn: () => selectedContract ? getComprehensiveRiskAnalysis(selectedContract.address) : null,
+    enabled: !!selectedContract
+  });
+
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    
-    // Simulated API call - replace with actual implementation
-    setTimeout(() => {
-      setContractRisks([
-        {
-          address: '7YarqNvdS8JNVB9RZ76e1GXkZM5wRxgkjZNRxXfUk1Nb',
-          riskLevel: 'high',
-          findings: [
-            {
-              type: 'Unauthorized Withdrawal',
-              description: 'Contract allows unauthorized withdrawals under certain conditions',
-              severity: 'high',
-              evidence: ['Function: withdraw()', 'No owner check implemented']
-            },
-            {
-              type: 'Timestamp Manipulation',
-              description: 'Vulnerable to timestamp manipulation attacks',
-              severity: 'medium',
-              evidence: ['Relies on block.timestamp for critical logic']
-            }
-          ],
-          interactionCount: 1205,
-          lastInteraction: '2024-03-15T10:30:00Z',
-          totalValue: 50000
-        },
-      ]);
-      setLoading(false);
-    }, 1500);
+    if (searchAddress) {
+      setSelectedContract(null);
+    }
   };
+
+  const loading = contractsLoading || riskLoading;
 
   const getRiskColor = (level: 'low' | 'medium' | 'high') => {
     switch (level) {
@@ -105,12 +119,15 @@ export default function SmartContractScanner() {
           <div className="flex justify-center items-center h-64">
             <Spinner />
           </div>
-        ) : contractRisks.length > 0 ? (
+        ) : contractRisks?.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Contract List */}
             <div className="lg:col-span-1">
               <div className="glass-panel p-6">
-                <h2 className="text-xl font-semibold mb-4">Analyzed Contracts</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">Analyzed Contracts</h2>
+                  <WebacyBranding size="sm" />
+                </div>
                 <div className="space-y-4">
                   {contractRisks.map((contract) => (
                     <motion.div
@@ -147,48 +164,89 @@ export default function SmartContractScanner() {
             <div className="lg:col-span-2">
               {selectedContract ? (
                 <div className="glass-panel p-6">
-                  <div className="mb-6">
-                    <h2 className="text-xl font-semibold mb-2">Contract Details</h2>
-                    <p className="font-mono text-sm text-muted-foreground">
-                      {selectedContract.address}
-                    </p>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold">Contract Details</h2>
+                    <WebacyBranding size="md" />
                   </div>
 
+                  {/* Risk Score Section */}
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">Risk Score</span>
+                      <span className={`font-medium ${
+                        (riskAnalysis?.overallRiskScore ?? 0) > 0.7 ? 'text-red-500' : 
+                        (riskAnalysis?.overallRiskScore ?? 0) > 0.3 ? 'text-yellow-500' : 
+                        'text-green-500'
+                      }`}>
+                        {riskAnalysis ? `${(riskAnalysis.overallRiskScore * 100).toFixed(0)}%` : 'Analyzing...'}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full transition-all duration-300"
+                        style={{ 
+                          width: `${(riskAnalysis?.overallRiskScore || 0) * 100}%`,
+                          background: `linear-gradient(90deg, rgb(20, 241, 149), rgb(255, 159, 28), rgb(239, 68, 68))`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Risk Factors Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="glass-card p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <RiShieldCheckLine className="text-xl text-solana-purple" />
-                        <span className="text-sm font-semibold">Risk Level</span>
+                        <span className="text-sm font-semibold">Contract Safety</span>
                       </div>
-                      <span className={`text-lg font-bold ${getRiskColor(selectedContract.riskLevel)}`}>
-                        {selectedContract.riskLevel.toUpperCase()}
+                      <span className={`text-lg font-bold ${
+                        (riskAnalysis?.contractRisk?.riskScore ?? 0) > 0.7 ? 'text-red-500' :
+                        (riskAnalysis?.contractRisk?.riskScore ?? 0) > 0.3 ? 'text-yellow-500' :
+                        'text-green-500'
+                      }`}>
+                        {riskAnalysis?.contractRisk ? 
+                          `${(riskAnalysis.contractRisk.riskScore * 100).toFixed(0)}%` : 
+                          'Analyzing...'}
                       </span>
                     </div>
 
                     <div className="glass-card p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <RiAlertLine className="text-xl text-solana-teal" />
-                        <span className="text-sm font-semibold">Interactions</span>
+                        <span className="text-sm font-semibold">Threat Level</span>
                       </div>
-                      <span className="text-lg font-bold">
-                        {selectedContract.interactionCount.toLocaleString()}
+                      <span className={`text-lg font-bold ${
+                        (riskAnalysis?.threatRisks?.riskScore ?? 0) > 0.7 ? 'text-red-500' :
+                        (riskAnalysis?.threatRisks?.riskScore ?? 0) > 0.3 ? 'text-yellow-500' :
+                        'text-green-500'
+                      }`}>
+                        {riskAnalysis?.threatRisks ? 
+                          `${(riskAnalysis.threatRisks.riskScore * 100).toFixed(0)}%` : 
+                          'Analyzing...'}
                       </span>
                     </div>
 
                     <div className="glass-card p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <RiTimeLine className="text-xl text-solana-purple" />
-                        <span className="text-sm font-semibold">Last Activity</span>
+                        <span className="text-sm font-semibold">Exposure Risk</span>
                       </div>
-                      <span className="text-lg font-bold">
-                        {new Date(selectedContract.lastInteraction).toLocaleDateString()}
+                      <span className={`text-lg font-bold ${
+                        (riskAnalysis?.exposureRisk?.exposureScore ?? 0) > 0.7 ? 'text-red-500' :
+                        (riskAnalysis?.exposureRisk?.exposureScore ?? 0) > 0.3 ? 'text-yellow-500' :
+                        'text-green-500'
+                      }`}>
+                        {riskAnalysis?.exposureRisk ? 
+                          `${(riskAnalysis.exposureRisk.exposureScore * 100).toFixed(0)}%` : 
+                          'Analyzing...'}
                       </span>
                     </div>
                   </div>
 
+                  {/* Security Findings */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold mb-2">Security Findings</h3>
-                    {selectedContract.findings.map((finding, index) => (
+                    {riskAnalysis?.contractRisk?.analysis.map((finding, index) => (
                       <motion.div
                         key={index}
                         initial={{ opacity: 0, y: 20 }}
@@ -197,20 +255,19 @@ export default function SmartContractScanner() {
                         className="glass-card p-4"
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold">{finding.type}</span>
+                          <span className="font-semibold">{finding.category}</span>
                           <span className={`text-sm px-2 py-1 rounded-full ${
-                            getRiskColor(finding.severity)
-                          } bg-opacity-20`}>
+                            finding.severity === 'high' ? 'bg-red-500/20 text-red-500' :
+                            finding.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-500' :
+                            'bg-green-500/20 text-green-500'
+                          }`}>
                             {finding.severity}
                           </span>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {finding.description}
-                        </p>
-                        <div className="space-y-1">
-                          {finding.evidence.map((item, i) => (
-                            <div key={i} className="text-xs font-mono bg-card/30 p-2 rounded">
-                              {item}
+                        <div className="space-y-2">
+                          {finding.findings.map((evidence, i) => (
+                            <div key={i} className="text-sm text-muted-foreground">
+                              {evidence}
                             </div>
                           ))}
                         </div>
