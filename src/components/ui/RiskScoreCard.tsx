@@ -1,39 +1,6 @@
 import { motion } from 'framer-motion';
 import { RiShieldLine, RiAlertLine, RiInformationLine } from 'react-icons/ri';
 
-// Custom Webacy logo component
-const WebacyLogo = () => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className="text-gray-500"
-  >
-    <path
-      d="M12 2L3 7V17L12 22L21 17V7L12 2Z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M12 6L7 9V15L12 18L17 15V9L12 6Z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <circle
-      cx="12"
-      cy="12"
-      r="2"
-      fill="currentColor"
-    />
-  </svg>
-);
-
 interface RiskScoreCardProps {
   score: number;
   loading?: boolean;
@@ -67,7 +34,7 @@ export function RiskScoreCard({ score, loading, details, className = '' }: RiskS
         </h3>
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <span>Powered by</span>
-          <WebacyLogo />
+          <img src="/webacy.png" alt="Webacy" className="w-5 h-5" />
           <span>Webacy</span>
         </div>
       </div>
