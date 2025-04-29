@@ -15,7 +15,8 @@ import {
   RiShieldCheckLine,
   RiExchangeLine,
   RiQuestionLine,
-  RiAlertLine
+  RiAlertLine,
+  RiShieldStarLine
 } from 'react-icons/ri';
 import { SiSolana } from 'react-icons/si';
 import { GuideModal } from './ui/GuideModal';
@@ -93,11 +94,8 @@ export default function Layout() {
               <nav className="space-y-1 relative">
                 <NavLink to="/transaction-flow" icon={<RiFlowChart />} label="Transaction Flow" />
                 <NavLink to="/wallet-analysis" icon={<RiWalletLine />} label="Wallet Analysis" />
-                <NavLink to="/entity-labels" icon={<RiUserSearchLine />} label="Entity Labels" />
                 <NavLink to="/transaction-clustering" icon={<RiGroupLine />} label="Clustering" />
                 <NavLink to="/pattern-analysis" icon={<RiRadarLine />} label="Pattern Analysis" />
-                <NavLink to="/smart-contract-scanner" icon={<RiShieldCheckLine />} label="Contract Scanner" />
-                <NavLink to="/bridge-monitor" icon={<RiExchangeLine />} label="Bridge Monitor" />
               </nav>
             </div>
 
@@ -108,6 +106,15 @@ export default function Layout() {
                 <NavLink to="/token-security/trending" icon={<RiRadarLine />} label="Trending Tokens" />
                 <NavLink to="/token-security/new" icon={<RiAlertLine />} label="New Tokens" />
                 <NavLink to="/token-security/verified" icon={<RiShieldCheckLine />} label="Verified Tokens" />
+              </nav>
+            </div>
+
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Other Tools</p>
+              <nav className="space-y-1 relative">
+                <NavLink to="/entity-labels" icon={<RiUserSearchLine />} label="Entity Labels" />
+                <NavLink to="/smart-contract-scanner" icon={<RiShieldStarLine />} label="Contract Scanner" />
+                <NavLink to="/bridge-monitor" icon={<RiExchangeLine />} label="Bridge Monitor" />
               </nav>
             </div>
           </div>
