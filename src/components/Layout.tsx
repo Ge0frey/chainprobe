@@ -104,7 +104,10 @@ export default function Layout() {
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Token Security</p>
               <nav className="space-y-1 relative">
-                <NavLink to="/rug-check" icon={<RiAlertLine />} label="Rug Check" />
+                <NavLink to="/token-security/analyzer" icon={<RiShieldCheckLine />} label="Token Analyzer" />
+                <NavLink to="/token-security/trending" icon={<RiRadarLine />} label="Trending Tokens" />
+                <NavLink to="/token-security/new" icon={<RiAlertLine />} label="New Tokens" />
+                <NavLink to="/token-security/verified" icon={<RiShieldCheckLine />} label="Verified Tokens" />
               </nav>
             </div>
           </div>

@@ -16,7 +16,12 @@ import TransactionClustering from './components/TransactionClustering';
 import PatternAnalysis from './components/PatternAnalysis';
 import SmartContractScanner from './components/SmartContractScanner';
 import BridgeMonitor from './components/BridgeMonitor';
-import RugCheck from './components/RugCheck';
+
+// Token Security Components
+import TokenAnalyzer from './components/TokenSecurity/TokenAnalyzer';
+import TrendingTokens from './components/TokenSecurity/TrendingTokens';
+import NewTokens from './components/TokenSecurity/NewTokens';
+import VerifiedTokens from './components/TokenSecurity/VerifiedTokens';
 
 // Initialize QueryClient for React Query
 const queryClient = new QueryClient({
@@ -58,7 +63,15 @@ function App() {
                   <Route path="/pattern-analysis" element={<PatternAnalysis />} />
                   <Route path="/smart-contract-scanner" element={<SmartContractScanner />} />
                   <Route path="/bridge-monitor" element={<BridgeMonitor />} />
-                  <Route path="/rug-check" element={<RugCheck />} />
+                  
+                  {/* Token Security Routes */}
+                  <Route path="/token-security">
+                    <Route index element={<Navigate to="analyzer" replace />} />
+                    <Route path="analyzer" element={<TokenAnalyzer />} />
+                    <Route path="trending" element={<TrendingTokens />} />
+                    <Route path="new" element={<NewTokens />} />
+                    <Route path="verified" element={<VerifiedTokens />} />
+                  </Route>
                 </Route>
 
                 {/* Catch all route */}
