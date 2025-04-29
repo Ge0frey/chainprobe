@@ -14,7 +14,8 @@ import {
   RiSunLine,
   RiShieldCheckLine,
   RiExchangeLine,
-  RiQuestionLine
+  RiQuestionLine,
+  RiAlertLine
 } from 'react-icons/ri';
 import { SiSolana } from 'react-icons/si';
 import { GuideModal } from './ui/GuideModal';
@@ -97,6 +98,13 @@ export default function Layout() {
                 <NavLink to="/pattern-analysis" icon={<RiRadarLine />} label="Pattern Analysis" />
                 <NavLink to="/smart-contract-scanner" icon={<RiShieldCheckLine />} label="Contract Scanner" />
                 <NavLink to="/bridge-monitor" icon={<RiExchangeLine />} label="Bridge Monitor" />
+              </nav>
+            </div>
+
+            <div>
+              <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-500 font-medium pl-4 mb-2">Token Security</p>
+              <nav className="space-y-1 relative">
+                <NavLink to="/rug-check" icon={<RiAlertLine />} label="Rug Check" />
               </nav>
             </div>
           </div>

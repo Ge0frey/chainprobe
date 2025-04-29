@@ -16,6 +16,7 @@ import TransactionClustering from './components/TransactionClustering';
 import PatternAnalysis from './components/PatternAnalysis';
 import SmartContractScanner from './components/SmartContractScanner';
 import BridgeMonitor from './components/BridgeMonitor';
+import RugCheck from './components/RugCheck';
 
 // Initialize QueryClient for React Query
 const queryClient = new QueryClient({
@@ -57,6 +58,7 @@ function App() {
                   <Route path="/pattern-analysis" element={<PatternAnalysis />} />
                   <Route path="/smart-contract-scanner" element={<SmartContractScanner />} />
                   <Route path="/bridge-monitor" element={<BridgeMonitor />} />
+                  <Route path="/rug-check" element={<RugCheck />} />
                 </Route>
 
                 {/* Catch all route */}
