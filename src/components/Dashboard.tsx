@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -8,6 +8,27 @@ import { getComprehensiveRiskAnalysis } from '../services/webacy';
 import { fetchDuneTokenBalances, DuneTokenBalance } from '../services/dune';
 import { Spinner } from './ui/Spinner';
 import { RiskScoreCard } from './ui/RiskScoreCard';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  TimeScale,
+  RadialLinearScale,
+  ArcElement,
+  PolarAreaController,
+  PieController,
+  DoughnutController
+} from 'chart.js';
+import { Bar, Line, Doughnut, PolarArea } from 'react-chartjs-2';
+import { DateTime } from 'luxon';
+import 'chartjs-adapter-luxon';
 import { 
   RiFlowChart, 
   RiWalletLine, 
@@ -23,11 +44,35 @@ import {
   RiDatabase2Line,
   RiStackLine,
   RiShieldLine,
-  RiBarChartBoxLine
+  RiBarChartBoxLine,
+  RiPieChartLine,
+  RiLineChartLine,
+  RiCalendarLine,
+  RiRadarLine
 } from 'react-icons/ri';
 import { SiSolana } from 'react-icons/si';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { FeaturesSection } from './ui/FeaturesSection';
+import { TransactionNetworkGraph } from './ui/TransactionNetworkGraph';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  TimeScale,
+  RadialLinearScale,
+  ArcElement,
+  PolarAreaController,
+  PieController,
+  DoughnutController,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 // Import API keys from environment variables
 const HELIUS_API_KEY = import.meta.env.VITE_HELIUS_API_KEY;
@@ -54,6 +99,32 @@ const itemVariants = {
   }
 };
 
+// Type definition for transaction patterns and visualizations
+interface TransactionPatternData {
+  hourlyActivity: {
+    hour: number;
+    count: number;
+  }[];
+  dailyActivity: {
+    date: string;
+    count: number;
+  }[];
+  transactionTypeDistribution: {
+    type: string;
+    count: number;
+  }[];
+  volumeOverTime: {
+    date: string;
+    volume: number;
+  }[];
+  feeStats: {
+    min: number;
+    max: number;
+    avg: number;
+    total: number;
+  };
+}
+
 // Type definition for Solana network stats
 interface SolanaNetworkStats {
   totalSupply?: string;
@@ -76,7 +147,7 @@ interface SolanaNetworkStats {
 interface TokenTransfer {
   fromUserAccount: string;
   toUserAccount: string;
-  tokenAmount: string;
+  tokenAmount: number | string;
   mint: string;
 }
 
@@ -100,7 +171,128 @@ export default function Dashboard() {
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
   const [solanaStats, setSolanaStats] = useState<SolanaNetworkStats>({});
   const [statsLoading, setStatsLoading] = useState(true);
-
+  const [patternData, setPatternData] = useState<TransactionPatternData | null>(null);
+  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
+  
+  // Chart references for animations - using any type to avoid TypeScript issues
+  const hourlyChartRef = useRef<any>(null);
+  const typeChartRef = useRef<any>(null);
+  const volumeChartRef = useRef<any>(null);
+  const activityChartRef = useRef<any>(null);
+  
+  // Process transactions into visualization data
+  const processTransactionPatterns = (transactions: HeliusTransaction[]) => {
+    if (!transactions || transactions.length === 0) {
+      return null;
+    }
+    
+    // Hour of day activity (0-23)
+    const hourlyMap = new Map<number, number>();
+    for (let i = 0; i < 24; i++) hourlyMap.set(i, 0);
+    
+    // Daily activity for past 30 days
+    const thirtyDaysAgo = DateTime.now().minus({ days: 30 }).toMillis();
+    const dailyMap = new Map<string, number>();
+    const volumeMap = new Map<string, number>();
+    const now = DateTime.now();
+    for (let i = 0; i < 30; i++) {
+      const date = now.minus({ days: i }).toFormat('yyyy-MM-dd');
+      dailyMap.set(date, 0);
+      volumeMap.set(date, 0);
+    }
+    
+    // Transaction type distribution
+    const typeMap = new Map<string, number>();
+    
+    // Fee stats
+    let minFee = Number.MAX_VALUE;
+    let maxFee = 0;
+    let totalFee = 0;
+    
+    // Process each transaction
+    transactions.forEach(tx => {
+      // Transaction hour (local time)
+      const txDate = DateTime.fromSeconds(tx.blockTime);
+      const hour = txDate.hour;
+      hourlyMap.set(hour, (hourlyMap.get(hour) || 0) + 1);
+      
+      // Transaction day
+      if (tx.blockTime * 1000 >= thirtyDaysAgo) {
+        const dateKey = txDate.toFormat('yyyy-MM-dd');
+        dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + 1);
+        
+        // Volume over time (use amount if available, or 1 as placeholder)
+        const txAmount = tx.amount || 0;
+        volumeMap.set(dateKey, (volumeMap.get(dateKey) || 0) + txAmount);
+      }
+      
+      // Transaction type
+      const type = tx.type || 'UNKNOWN';
+      typeMap.set(type, (typeMap.get(type) || 0) + 1);
+      
+      // Fee stats
+      const fee = tx.fee / 1e9; // Convert lamports to SOL
+      minFee = Math.min(minFee, fee);
+      maxFee = Math.max(maxFee, fee);
+      totalFee += fee;
+    });
+    
+    // Format the data for charts
+    const hourlyActivity = Array.from(hourlyMap).map(([hour, count]) => ({ hour, count }));
+    const dailyActivity = Array.from(dailyMap).map(([date, count]) => ({ date, count }));
+    const volumeOverTime = Array.from(volumeMap).map(([date, volume]) => ({ date, volume }));
+    const transactionTypeDistribution = Array.from(typeMap).map(([type, count]) => ({ type, count }));
+    
+    // Calculate average fee
+    const avgFee = totalFee / transactions.length;
+    
+    return {
+      hourlyActivity,
+      dailyActivity,
+      transactionTypeDistribution,
+      volumeOverTime,
+      feeStats: {
+        min: minFee,
+        max: maxFee,
+        avg: avgFee,
+        total: totalFee
+      }
+    };
+  };
+  
+  // Apply time range filter to pattern data
+  const getFilteredPatternData = () => {
+    if (!patternData) return null;
+    
+    // Filter based on selected time range
+    const now = DateTime.now();
+    const dailyActivity = [...patternData.dailyActivity].sort((a, b) => a.date.localeCompare(b.date));
+    const volumeOverTime = [...patternData.volumeOverTime].sort((a, b) => a.date.localeCompare(b.date));
+    
+    let filteredDaily = dailyActivity;
+    let filteredVolume = volumeOverTime;
+    
+    if (timeRange === '24h') {
+      const yesterday = now.minus({ days: 1 }).toFormat('yyyy-MM-dd');
+      filteredDaily = dailyActivity.filter(item => item.date >= yesterday);
+      filteredVolume = volumeOverTime.filter(item => item.date >= yesterday);
+    } else if (timeRange === '7d') {
+      const sevenDaysAgo = now.minus({ days: 7 }).toFormat('yyyy-MM-dd');
+      filteredDaily = dailyActivity.filter(item => item.date >= sevenDaysAgo);
+      filteredVolume = volumeOverTime.filter(item => item.date >= sevenDaysAgo);
+    } else if (timeRange === '30d') {
+      const thirtyDaysAgo = now.minus({ days: 30 }).toFormat('yyyy-MM-dd');
+      filteredDaily = dailyActivity.filter(item => item.date >= thirtyDaysAgo);
+      filteredVolume = volumeOverTime.filter(item => item.date >= thirtyDaysAgo);
+    }
+    
+    return {
+      ...patternData,
+      dailyActivity: filteredDaily,
+      volumeOverTime: filteredVolume
+    };
+  };
+  
   // Fetch Solana network stats
   useEffect(() => {
     const fetchSolanaStats = async () => {
@@ -193,6 +385,19 @@ export default function Dashboard() {
     return () => clearInterval(intervalId);
   }, []);
 
+  // Fetch token balances
+  const { 
+    data: tokenBalances, 
+    isLoading: balancesLoading 
+  } = useQuery<DuneTokenBalance[]>({
+    queryKey: ['dune-token-balances', currentAddress],
+    queryFn: async () => {
+      if (!currentAddress) return [];
+      return await fetchDuneTokenBalances(currentAddress);
+    },
+    enabled: !!currentAddress,
+  });
+  
   // Fetch wallet transactions
   const { 
     data: transactions, 
@@ -212,18 +417,13 @@ export default function Dashboard() {
     retry: false,
   });
 
-  // Fetch token balances
-  const { 
-    data: tokenBalances, 
-    isLoading: balancesLoading 
-  } = useQuery<DuneTokenBalance[]>({
-    queryKey: ['dune-token-balances', currentAddress],
-    queryFn: async () => {
-      if (!currentAddress) return [];
-      return await fetchDuneTokenBalances(currentAddress);
-    },
-    enabled: !!currentAddress,
-  });
+  // Process transaction patterns when transactions are loaded
+  useEffect(() => {
+    if (transactions && transactions.length > 0) {
+      const patterns = processTransactionPatterns(transactions);
+      setPatternData(patterns);
+    }
+  }, [transactions]);
 
   // Add risk analysis query
   const {
@@ -767,6 +967,460 @@ export default function Dashboard() {
                   <p className="text-gray-500 dark:text-gray-400">No transaction details available</p>
                 </div>
               ))}
+
+              {/* Transaction Pattern Visualizations */}
+              {patternData && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="glass-panel overflow-hidden rounded-xl"
+                >
+                  <div className="p-4 border-b border-gray-200/70 dark:border-gray-700/70">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Transaction Patterns</h2>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Time Range:</span>
+                        <div className="flex space-x-1">
+                          {['24h', '7d', '30d', 'all'].map((range) => (
+                            <button
+                              key={range}
+                              onClick={() => setTimeRange(range as any)}
+                              className={`px-2 py-1 text-xs rounded-md ${
+                                timeRange === range 
+                                  ? 'bg-solana-purple text-white' 
+                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              {range}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Visualization grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                    {/* Transaction Type Distribution */}
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.4 }}
+                      className="glass-card p-4 rounded-xl"
+                    >
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                        <RiPieChartLine className="mr-2 text-solana-purple" />
+                        Transaction Type Distribution
+                      </h3>
+                      <div className="h-64">
+                        <Doughnut
+                          ref={typeChartRef}
+                          data={{
+                            labels: patternData.transactionTypeDistribution.map(item => item.type),
+                            datasets: [
+                              {
+                                data: patternData.transactionTypeDistribution.map(item => item.count),
+                                backgroundColor: [
+                                  'rgba(153, 69, 255, 0.8)',  // Solana Purple
+                                  'rgba(20, 241, 149, 0.8)',  // Solana Teal
+                                  'rgba(0, 194, 255, 0.8)',   // Solana Blue
+                                  'rgba(139, 229, 62, 0.8)',  // Solana Lime
+                                  'rgba(249, 214, 73, 0.8)',  // Solana Yellow
+                                  'rgba(255, 107, 107, 0.8)', // Solana Pink
+                                  'rgba(255, 137, 6, 0.8)',   // Solana Orange
+                                  'rgba(159, 122, 234, 0.8)', // More purples
+                                  'rgba(80, 227, 194, 0.8)'   // More teals
+                                ],
+                                borderColor: [
+                                  'rgba(153, 69, 255, 1)',
+                                  'rgba(20, 241, 149, 1)',
+                                  'rgba(0, 194, 255, 1)',
+                                  'rgba(139, 229, 62, 1)',
+                                  'rgba(249, 214, 73, 1)',
+                                  'rgba(255, 107, 107, 1)',
+                                  'rgba(255, 137, 6, 1)',
+                                  'rgba(159, 122, 234, 1)',
+                                  'rgba(80, 227, 194, 1)'
+                                ],
+                                borderWidth: 1,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: {
+                                position: 'right',
+                                labels: {
+                                  boxWidth: 12,
+                                  font: {
+                                    size: 10
+                                  },
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgb(229, 231, 235)' 
+                                    : 'rgb(75, 85, 99)'
+                                }
+                              },
+                              tooltip: {
+                                callbacks: {
+                                  label: (context) => {
+                                    const label = context.label || '';
+                                    const value = context.raw as number;
+                                    const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0) as number;
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                  }
+                                }
+                              }
+                            },
+                            animation: {
+                              animateRotate: true,
+                              animateScale: true
+                            }
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                    
+                    {/* Hourly Activity Heatmap */}
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.5 }}
+                      className="glass-card p-4 rounded-xl"
+                    >
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                        <RiTimeLine className="mr-2 text-solana-teal" />
+                        Hourly Activity Pattern
+                      </h3>
+                      <div className="h-64">
+                        <Bar
+                          ref={hourlyChartRef}
+                          data={{
+                            labels: patternData.hourlyActivity.map(item => 
+                              `${item.hour}:00${item.hour < 12 ? 'am' : 'pm'}`
+                            ),
+                            datasets: [
+                              {
+                                label: 'Transaction Count',
+                                data: patternData.hourlyActivity.map(item => item.count),
+                                backgroundColor: (context) => {
+                                  const ctx = context.chart.ctx;
+                                  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                                  gradient.addColorStop(0, 'rgba(20, 241, 149, 0.8)');
+                                  gradient.addColorStop(1, 'rgba(20, 241, 149, 0.2)');
+                                  return gradient;
+                                },
+                                borderColor: 'rgba(20, 241, 149, 1)',
+                                borderWidth: 1,
+                                borderRadius: 4,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: {
+                                display: false,
+                              },
+                              tooltip: {
+                                callbacks: {
+                                  title: (tooltipItems) => {
+                                    return `Hour: ${tooltipItems[0].label}`;
+                                  },
+                                  label: (context) => {
+                                    return `Transactions: ${context.raw}`;
+                                  }
+                                }
+                              }
+                            },
+                            scales: {
+                              x: {
+                                grid: {
+                                  display: false,
+                                },
+                                ticks: {
+                                  maxRotation: 0,
+                                  autoSkip: true,
+                                  maxTicksLimit: 12,
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgba(229, 231, 235, 0.8)' 
+                                    : 'rgba(75, 85, 99, 0.8)'
+                                }
+                              },
+                              y: {
+                                beginAtZero: true,
+                                grid: {
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgba(75, 85, 99, 0.2)' 
+                                    : 'rgba(209, 213, 219, 0.2)',
+                                },
+                                ticks: {
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgba(229, 231, 235, 0.8)' 
+                                    : 'rgba(75, 85, 99, 0.8)'
+                                }
+                              }
+                            },
+                            animation: {
+                              duration: 2000
+                            }
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                    
+                    {/* Daily Activity Over Time */}
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.6 }}
+                      className="glass-card p-4 rounded-xl"
+                    >
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                        <RiCalendarLine className="mr-2 text-solana-blue" />
+                        Transaction Activity
+                      </h3>
+                      <div className="h-64">
+                        <Line
+                          ref={activityChartRef}
+                          data={{
+                            labels: getFilteredPatternData()?.dailyActivity.map(item => item.date) || [],
+                            datasets: [
+                              {
+                                label: 'Transaction Count',
+                                data: getFilteredPatternData()?.dailyActivity.map(item => item.count) || [],
+                                borderColor: 'rgba(0, 194, 255, 1)',
+                                backgroundColor: 'rgba(0, 194, 255, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                pointBackgroundColor: 'rgba(0, 194, 255, 1)',
+                                pointBorderColor: '#fff',
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: {
+                                display: false,
+                              },
+                              tooltip: {
+                                callbacks: {
+                                  title: (tooltipItems) => {
+                                    return DateTime.fromFormat(tooltipItems[0].label, 'yyyy-MM-dd').toFormat('MMM dd, yyyy');
+                                  }
+                                }
+                              }
+                            },
+                            scales: {
+                              x: {
+                                type: 'time',
+                                time: {
+                                  unit: timeRange === '24h' ? 'hour' : 'day',
+                                  tooltipFormat: 'MMM dd, yyyy',
+                                  displayFormats: {
+                                    day: 'MMM dd'
+                                  }
+                                },
+                                grid: {
+                                  display: false,
+                                },
+                                ticks: {
+                                  maxRotation: 45,
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgba(229, 231, 235, 0.8)' 
+                                    : 'rgba(75, 85, 99, 0.8)'
+                                }
+                              },
+                              y: {
+                                beginAtZero: true,
+                                grid: {
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgba(75, 85, 99, 0.2)' 
+                                    : 'rgba(209, 213, 219, 0.2)',
+                                },
+                                ticks: {
+                                  precision: 0,
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgba(229, 231, 235, 0.8)' 
+                                    : 'rgba(75, 85, 99, 0.8)'
+                                }
+                              }
+                            },
+                            animation: {
+                              duration: 2000
+                            }
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                    
+                    {/* Volume Over Time */}
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.7 }}
+                      className="glass-card p-4 rounded-xl"
+                    >
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                        <RiLineChartLine className="mr-2 text-solana-pink" />
+                        Transaction Volume
+                      </h3>
+                      <div className="h-64">
+                        <Bar
+                          ref={volumeChartRef}
+                          data={{
+                            labels: getFilteredPatternData()?.volumeOverTime.map(item => item.date) || [],
+                            datasets: [
+                              {
+                                label: 'Transaction Volume',
+                                data: getFilteredPatternData()?.volumeOverTime.map(item => item.volume) || [],
+                                backgroundColor: (context) => {
+                                  const ctx = context.chart.ctx;
+                                  const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                                  gradient.addColorStop(0, 'rgba(255, 107, 107, 0.8)');
+                                  gradient.addColorStop(1, 'rgba(255, 107, 107, 0.2)');
+                                  return gradient;
+                                },
+                                borderColor: 'rgba(255, 107, 107, 1)',
+                                borderWidth: 1,
+                                borderRadius: 4,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: {
+                                display: false,
+                              },
+                              tooltip: {
+                                callbacks: {
+                                  title: (tooltipItems) => {
+                                    return DateTime.fromFormat(tooltipItems[0].label, 'yyyy-MM-dd').toFormat('MMM dd, yyyy');
+                                  }
+                                }
+                              }
+                            },
+                            scales: {
+                              x: {
+                                type: 'time',
+                                time: {
+                                  unit: timeRange === '24h' ? 'hour' : 'day',
+                                  tooltipFormat: 'MMM dd, yyyy',
+                                  displayFormats: {
+                                    day: 'MMM dd'
+                                  }
+                                },
+                                grid: {
+                                  display: false,
+                                },
+                                ticks: {
+                                  maxRotation: 45,
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgba(229, 231, 235, 0.8)' 
+                                    : 'rgba(75, 85, 99, 0.8)'
+                                }
+                              },
+                              y: {
+                                beginAtZero: true,
+                                grid: {
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgba(75, 85, 99, 0.2)' 
+                                    : 'rgba(209, 213, 219, 0.2)',
+                                },
+                                ticks: {
+                                  color: document.documentElement.classList.contains('dark') 
+                                    ? 'rgba(229, 231, 235, 0.8)' 
+                                    : 'rgba(75, 85, 99, 0.8)'
+                                }
+                              }
+                            },
+                            animation: {
+                              duration: 2000
+                            }
+                          }}
+                        />
+                      </div>
+                    </motion.div>
+                    
+                    {/* Fee Statistics */}
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.8 }}
+                      className="glass-card p-4 rounded-xl md:col-span-2"
+                    >
+                      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                        <SiSolana className="mr-2 text-solana-purple" />
+                        Fee Statistics
+                      </h3>
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="p-4 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 rounded-xl border border-purple-100 dark:border-purple-800/30">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Minimum Fee</p>
+                          <p className="text-xl font-bold text-purple-700 dark:text-purple-300">{patternData.feeStats.min.toFixed(6)} SOL</p>
+                        </div>
+                        <div className="p-4 bg-gradient-to-br from-blue-50 to-teal-50 dark:from-blue-900/30 dark:to-teal-900/30 rounded-xl border border-blue-100 dark:border-blue-800/30">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Maximum Fee</p>
+                          <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{patternData.feeStats.max.toFixed(6)} SOL</p>
+                        </div>
+                        <div className="p-4 bg-gradient-to-br from-teal-50 to-green-50 dark:from-teal-900/30 dark:to-green-900/30 rounded-xl border border-teal-100 dark:border-teal-800/30">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Average Fee</p>
+                          <p className="text-xl font-bold text-teal-700 dark:text-teal-300">{patternData.feeStats.avg.toFixed(6)} SOL</p>
+                        </div>
+                        <div className="p-4 bg-gradient-to-br from-green-50 to-lime-50 dark:from-green-900/30 dark:to-lime-900/30 rounded-xl border border-green-100 dark:border-green-800/30">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Total Fees</p>
+                          <p className="text-xl font-bold text-green-700 dark:text-green-300">{patternData.feeStats.total.toFixed(6)} SOL</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* 3D Transaction Network Visualization */}
+              {transactions && transactions.length > 0 && currentAddress && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 }}
+                  className="glass-panel overflow-hidden rounded-xl"
+                >
+                  <div className="p-4 border-b border-gray-200/70 dark:border-gray-700/70">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <RiRadarLine className="text-solana-purple" />
+                      Transaction Network
+                    </h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Interactive 3D visualization of transaction relationships. Drag to rotate, scroll to zoom.
+                    </p>
+                  </div>
+                  <div className="p-4">
+                    <div className="h-[500px] w-full">
+                      <TransactionNetworkGraph 
+                        transactions={transactions}
+                        centerAddress={currentAddress}
+                        onNodeClick={(node) => {
+                          if (node.type === 'transaction') {
+                            handleTransactionClick(node.id);
+                          }
+                        }}
+                        selectedNode={selectedTransaction}
+                        width={Math.min(window.innerWidth * 0.8, 1200)}
+                        height={500}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             {/* Right column - Token Holdings and Risk Assessment */}
