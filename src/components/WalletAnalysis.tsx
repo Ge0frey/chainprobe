@@ -15,7 +15,8 @@ import {
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
-import { getEnhancedWalletActivity, fetchTokenBalances, fetchWalletTransactions } from '../services/solana';
+import { getEnhancedWalletActivity, fetchWalletTransactions } from '../services/solana';
+import { fetchDuneTokenBalances, DuneTokenBalance } from '../services/dune';
 import { Spinner } from './ui/Spinner';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -74,9 +75,12 @@ export default function WalletAnalysis() {
     isLoading: tokensLoading,
     error: tokensError,
     refetch: refetchTokens
-  } = useQuery({
-    queryKey: ['token-balances', currentAddress],
-    queryFn: () => currentAddress ? fetchTokenBalances(currentAddress) : null,
+  } = useQuery<DuneTokenBalance[]>({
+    queryKey: ['dune-token-balances', currentAddress],
+    queryFn: async () => {
+      if (!currentAddress) return [];
+      return await fetchDuneTokenBalances(currentAddress);
+    },
     enabled: !!currentAddress,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 30000),
@@ -419,30 +423,71 @@ export default function WalletAnalysis() {
                         <>
                           {(showAllTokens ? tokenBalances : tokenBalances.slice(0, 5)).map(token => (
                             <motion.div
-                              key={token.mint}
+                              key={token.address}
                               initial={{ opacity: 0, x: -20 }}
                               animate={{ opacity: 1, x: 0 }}
-                              className="flex items-center justify-between p-3 bg-card/30 rounded-lg hover:bg-card/50 transition-colors"
+                              className="p-4 bg-card/30 rounded-lg hover:bg-card/50 transition-colors"
                             >
-                              <div className="flex items-center gap-3">
-                                {token.logo ? (
-                                  <img src={token.logo} alt={token.symbol || 'token'} className="w-8 h-8 rounded-full" />
+                              <div className="flex items-center gap-3 mb-2">
+                                {token.token_metadata?.logo ? (
+                                  <img src={token.token_metadata.logo} alt={token.symbol || 'token'} className="w-10 h-10 rounded-full border border-gray-200 dark:border-gray-700" />
                                 ) : (
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-solana-purple/20 to-solana-teal/20 flex items-center justify-center">
+                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-solana-purple/20 to-solana-teal/20 flex items-center justify-center">
                                     <span className="text-xs font-medium">{token.symbol?.[0] || '?'}</span>
                                   </div>
                                 )}
                                 <div>
-                                  <p className="font-medium">{token.name || token.symbol || token.mint.slice(0, 8)}</p>
-                                  <p className="text-sm text-muted-foreground">{token.symbol || token.mint.slice(0, 8)}</p>
+                                  <p className="font-medium">{token.name || token.symbol || token.address.slice(0, 8)}</p>
+                                  <p className="text-sm text-muted-foreground">{token.symbol}</p>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <p className="font-medium">{token.uiAmount.toFixed(token.decimals || 2)}</p>
-                                {token.value !== undefined && (
-                                  <p className="text-sm text-muted-foreground">${token.value.toFixed(2)}</p>
+
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
+                                <div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Amount</p>
+                                  <p className="font-medium">{parseFloat(token.amount).toLocaleString(undefined, {
+                                    maximumFractionDigits: token.decimals > 4 ? 4 : token.decimals
+                                  })}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Value</p>
+                                  <p className="font-medium">${token.value_usd?.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                  }) || '0.00'}</p>
+                                </div>
+                                {token.price_usd && (
+                                  <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Price</p>
+                                    <p className="font-medium">${token.price_usd.toLocaleString(undefined, {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 6
+                                    })}</p>
+                                  </div>
+                                )}
+                                {token.low_liquidity !== undefined && (
+                                  <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Liquidity</p>
+                                    <p className={`font-medium ${token.low_liquidity ? 'text-yellow-500' : 'text-green-500'}`}>
+                                      {token.low_liquidity ? 'Low' : 'High'}
+                                    </p>
+                                  </div>
                                 )}
                               </div>
+
+                              {token.token_metadata?.url && (
+                                <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                  <a 
+                                    href={token.token_metadata.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-solana-purple hover:text-solana-teal transition-colors flex items-center gap-1"
+                                  >
+                                    <span>View Token Info</span>
+                                    <RiExternalLinkLine />
+                                  </a>
+                                </div>
+                              )}
                             </motion.div>
                           ))}
                         </>

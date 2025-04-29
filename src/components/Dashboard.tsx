@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { fetchWalletTransactions, fetchTokenBalances, HeliusTransaction, fetchEnhancedTransaction, EnhancedTransaction } from '../services/solana';
 import { getComprehensiveRiskAnalysis } from '../services/webacy';
+import { fetchDuneTokenBalances, DuneTokenBalance } from '../services/dune';
 import { Spinner } from './ui/Spinner';
 import { RiskScoreCard } from './ui/RiskScoreCard';
 import { 
@@ -215,9 +216,12 @@ export default function Dashboard() {
   const { 
     data: tokenBalances, 
     isLoading: balancesLoading 
-  } = useQuery({
-    queryKey: ['token-balances', currentAddress],
-    queryFn: () => currentAddress ? fetchTokenBalances(currentAddress) : null,
+  } = useQuery<DuneTokenBalance[]>({
+    queryKey: ['dune-token-balances', currentAddress],
+    queryFn: async () => {
+      if (!currentAddress) return [];
+      return await fetchDuneTokenBalances(currentAddress);
+    },
     enabled: !!currentAddress,
   });
 
@@ -780,19 +784,19 @@ export default function Dashboard() {
                   </div>
                   <div className="p-4">
                     <ul className="divide-y divide-gray-200/70 dark:divide-gray-700/70">
-                      {tokenBalances.map((token: Token) => (
+                      {tokenBalances.map((token) => (
                         <motion.li 
-                          key={token.mint} 
+                          key={token.address} 
                           className="py-3"
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.1 * tokenBalances.indexOf(token) }}
                         >
                           <div className="flex items-center space-x-3">
-                            {token.logo ? (
+                            {token.token_metadata?.logo ? (
                               <div className="flex-shrink-0 h-8 w-8 p-1 bg-white dark:bg-gray-700 rounded-full shadow-sm">
                                 <img 
-                                  src={token.logo} 
+                                  src={token.token_metadata.logo} 
                                   alt={token.symbol || 'token'} 
                                   className="h-full w-full rounded-full"
                                   onError={(e) => {
@@ -805,15 +809,15 @@ export default function Dashboard() {
                             )}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                {token.symbol || token.mint.slice(0, 8)}...
+                                {token.symbol || token.address.slice(0, 8)}...
                               </p>
                               <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                                {token.uiAmount}
+                                {parseFloat(token.amount).toFixed(token.decimals > 4 ? 4 : token.decimals)}
                               </p>
                             </div>
-                            {token.value !== undefined && (
+                            {token.value_usd !== undefined && (
                               <div className="inline-flex items-center text-sm font-medium text-gray-900 dark:text-white">
-                                ${token.value.toFixed(2)}
+                                ${token.value_usd.toFixed(2)}
                               </div>
                             )}
                           </div>
