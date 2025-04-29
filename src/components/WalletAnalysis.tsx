@@ -15,7 +15,7 @@ import {
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import { Line, Doughnut, Bar } from 'react-chartjs-2';
-import { getEnhancedWalletActivity, fetchWalletTransactions } from '../services/solana';
+import { getEnhancedWalletActivity, fetchWalletTransactions, fetchEnhancedTransaction } from '../services/solana';
 import { fetchDuneTokenBalances, DuneTokenBalance } from '../services/dune';
 import { Spinner } from './ui/Spinner';
 import { format } from 'date-fns';
@@ -35,6 +35,7 @@ import {
 } from 'react-icons/ri';
 import { getComprehensiveRiskAnalysis } from '../services/webacy';
 import { RiskScoreCard } from './ui/RiskScoreCard';
+import { TransactionNetworkGraph } from './ui/TransactionNetworkGraph';
 
 ChartJS.register(
   CategoryScale,
@@ -54,6 +55,7 @@ export default function WalletAnalysis() {
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [showAllTokens, setShowAllTokens] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
 
   // Fetch enhanced wallet activity data
   const { 
@@ -111,6 +113,16 @@ export default function WalletAnalysis() {
     enabled: !!currentAddress,
   });
 
+  // Add transaction details query
+  const { 
+    data: transactionDetails, 
+    isLoading: detailsLoading 
+  } = useQuery<EnhancedTransaction | null>({
+    queryKey: ['transaction-details', selectedTransaction],
+    queryFn: () => selectedTransaction ? fetchEnhancedTransaction(selectedTransaction) : null,
+    enabled: !!selectedTransaction,
+  });
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchAddress) {
@@ -125,6 +137,36 @@ export default function WalletAnalysis() {
       refetchActivity();
       refetchTokens();
       refetchTransactions();
+    }
+  };
+
+  const handleTransactionClick = (signature: string) => {
+    setSelectedTransaction(signature);
+  };
+
+  // Format SOL amount
+  const formatSol = (lamports: number) => {
+    return (lamports / 1e9).toFixed(6);
+  };
+
+  // Get transaction type badge color
+  const getTypeBadgeColor = (txType: string) => {
+    switch (txType.toUpperCase()) {
+      case 'TRANSFER':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300';
+      case 'SWAP':
+      case 'SWAP_EXACT_IN':
+      case 'SWAP_EXACT_OUT':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-800/30 dark:text-purple-300';
+      case 'NFT_SALE':
+      case 'NFT_LISTING':
+      case 'NFT_CANCEL_LISTING':
+      case 'NFT_MINT':
+        return 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300';
+      case 'UNKNOWN':
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300';
+      default:
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-800/30 dark:text-indigo-300';
     }
   };
 
@@ -171,7 +213,7 @@ export default function WalletAnalysis() {
     ],
   } : null;
 
-  const isLoading = activityLoading || tokensLoading || txLoading || riskLoading;
+  const isLoading = activityLoading || tokensLoading || txLoading || riskLoading || detailsLoading;
   const error = activityError || tokensError || txError || riskError;
 
   return (
@@ -503,62 +545,75 @@ export default function WalletAnalysis() {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="glass-panel rounded-xl p-6"
+                    transition={{ delay: 0.2 }}
+                    className="glass-panel rounded-xl"
                   >
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-semibold">Recent Transactions</h2>
-                      {transactions && transactions.length > 5 && (
+                    <div className="p-4 border-b border-gray-200/70 dark:border-gray-700/70">
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Transactions</h2>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead>
+                          <tr className="bg-gray-50/50 dark:bg-gray-800/50">
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Signature</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Time</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Fee (SOL)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700/70">
+                          {(showAllTransactions ? transactions : transactions?.slice(0, 5))?.map((tx) => (
+                            <motion.tr 
+                              key={tx.signature} 
+                              className={`cursor-pointer hover:bg-gray-50/50 dark:hover:bg-gray-800/50 ${selectedTransaction === tx.signature ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''}`}
+                              onClick={() => handleTransactionClick(tx.signature)}
+                              whileHover={{ backgroundColor: 'rgba(243, 244, 246, 0.7)', scale: 1.005 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <td className="px-4 py-3 font-mono text-xs flex items-center">
+                                <span className="truncate max-w-[100px]">
+                                  {tx.signature.slice(0, 8)}...{tx.signature.slice(-8)}
+                                </span>
+                                <a 
+                                  href={`https://solscan.io/tx/${tx.signature}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="ml-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                                >
+                                  <RiExternalLinkLine />
+                                </a>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeBadgeColor(tx.type)}`}>
+                                  {tx.type || 'UNKNOWN'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                {new Date(tx.blockTime * 1000).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">
+                                {tx.amount ? `${tx.amount} ${tx.tokenInfo?.symbol || 'SOL'}` : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                                {formatSol(tx.fee)}
+                              </td>
+                            </motion.tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {transactions && transactions.length > 5 && (
+                      <div className="p-4 border-t border-gray-200/70 dark:border-gray-700/70">
                         <button
                           onClick={() => setShowAllTransactions(!showAllTransactions)}
                           className="text-sm text-solana-purple hover:text-solana-teal transition-colors"
                         >
                           {showAllTransactions ? 'Show Less' : `Show All (${transactions.length})`}
                         </button>
-                      )}
-                    </div>
-                    <div className="space-y-4">
-                      {transactions && transactions.length > 0 ? (
-                        <>
-                          {(showAllTransactions ? transactions : transactions.slice(0, 5)).map(tx => (
-                            <motion.div
-                              key={tx.signature}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              className="flex items-center justify-between p-3 bg-card/30 rounded-lg hover:bg-card/50 transition-colors"
-                            >
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{tx.type || 'Transfer'}</span>
-                                  {tx.source === currentAddress ? (
-                                    <RiArrowUpLine className="text-red-500" />
-                                  ) : (
-                                    <RiArrowDownLine className="text-green-500" />
-                                  )}
-                                </div>
-                                <p className="text-sm text-muted-foreground">{format(new Date(tx.blockTime * 1000), 'PPp')}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className={`font-medium ${tx.amount && tx.amount > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                  {tx.amount ? (tx.amount > 0 ? '+' : '') + tx.amount.toFixed(4) : '0.00'} {tx.tokenInfo?.symbol || 'SOL'}
-                                </p>
-                                <a
-                                  href={`https://solscan.io/tx/${tx.signature}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm text-solana-purple hover:text-solana-teal transition-colors flex items-center gap-1 justify-end"
-                                >
-                                  View <RiExternalLinkLine />
-                                </a>
-                              </div>
-                            </motion.div>
-                          ))}
-                        </>
-                      ) : (
-                        <div className="text-center text-muted-foreground">
-                          No recent transactions found
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </motion.div>
                 </div>
               </div>
@@ -639,8 +694,154 @@ export default function WalletAnalysis() {
                     )}
                   </motion.div>
                 )}
+
+                {/* Transaction Details */}
+                {selectedTransaction && (detailsLoading ? (
+                  <div className="text-center glass-panel p-6 rounded-xl">
+                    <Spinner />
+                  </div>
+                ) : transactionDetails ? (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="glass-panel overflow-hidden rounded-xl mt-6"
+                  >
+                    <div className="p-4 border-b border-gray-200/70 dark:border-gray-700/70">
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Transaction Details</h2>
+                    </div>
+                    <div className="p-4 space-y-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Type</h3>
+                        <p className="mt-1 text-sm text-gray-900 dark:text-white">{transactionDetails.type}</p>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Description</h3>
+                        <p className="mt-1 text-sm text-gray-900 dark:text-white">{transactionDetails.description}</p>
+                      </div>
+                      
+                      {transactionDetails.nativeTransfers && transactionDetails.nativeTransfers.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">SOL Transfers</h3>
+                          <div className="mt-1 rounded-md border border-gray-200/70 dark:border-gray-700/70 overflow-hidden bg-white/50 dark:bg-gray-800/50">
+                            <table className="min-w-full divide-y divide-gray-200/70 dark:divide-gray-700/70">
+                              <thead className="bg-gray-50/70 dark:bg-gray-800/70">
+                                <tr>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">From</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">To</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200/70 dark:divide-gray-700/70">
+                                {transactionDetails.nativeTransfers.map((transfer, idx) => (
+                                  <tr key={idx}>
+                                    <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                      {transfer.fromUserAccount.slice(0, 6)}...{transfer.fromUserAccount.slice(-6)}
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                      {transfer.toUserAccount.slice(0, 6)}...{transfer.toUserAccount.slice(-6)}
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-gray-900 dark:text-white">
+                                      {formatSol(transfer.amount)} SOL
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {transactionDetails.tokenTransfers && transactionDetails.tokenTransfers.length > 0 && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Token Transfers</h3>
+                          <div className="mt-1 rounded-md border border-gray-200/70 dark:border-gray-700/70 overflow-hidden bg-white/50 dark:bg-gray-800/50">
+                            <table className="min-w-full divide-y divide-gray-200/70 dark:divide-gray-700/70">
+                              <thead className="bg-gray-50/70 dark:bg-gray-800/70">
+                                <tr>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">From</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">To</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Amount</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Token</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200/70 dark:divide-gray-700/70">
+                                {transactionDetails.tokenTransfers.map((transfer, idx) => (
+                                  <tr key={idx}>
+                                    <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                      {transfer.fromUserAccount.slice(0, 6)}...{transfer.fromUserAccount.slice(-6)}
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                      {transfer.toUserAccount.slice(0, 6)}...{transfer.toUserAccount.slice(-6)}
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-gray-900 dark:text-white">
+                                      {transfer.tokenAmount}
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                                      {transfer.mint.slice(0, 6)}...
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <a 
+                      href={`https://solscan.io/tx/${selectedTransaction}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 p-3 border-t border-gray-200/70 dark:border-gray-700/70 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50/70 dark:hover:bg-gray-800/70 transition-colors"
+                    >
+                      <span>View on Solscan</span>
+                      <RiExternalLinkLine />
+                    </a>
+                  </motion.div>
+                ) : (
+                  <div className="text-center glass-panel p-6 rounded-xl">
+                    <p className="text-gray-500 dark:text-gray-400">No transaction details available</p>
+                  </div>
+                ))}
               </div>
             </div>
+
+            {/* Add the 3D Transaction Network Visualization */}
+            {transactions && transactions.length > 0 && currentAddress && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9 }}
+                className="glass-panel overflow-hidden rounded-xl mt-6"
+              >
+                <div className="p-4 border-b border-gray-200/70 dark:border-gray-700/70">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <RiExchangeLine className="text-solana-purple" />
+                    Transaction Network
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Interactive 3D visualization of transaction relationships. Drag to rotate, scroll to zoom.
+                  </p>
+                </div>
+                <div className="p-4">
+                  <div className="h-[500px] w-full">
+                    <TransactionNetworkGraph 
+                      transactions={transactions}
+                      centerAddress={currentAddress}
+                      onNodeClick={(node) => {
+                        if (node.type === 'transaction') {
+                          setSelectedTransaction(node.id);
+                        }
+                      }}
+                      selectedNode={selectedTransaction}
+                      width={Math.min(window.innerWidth * 0.8, 1200)}
+                      height={500}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
         )}
 

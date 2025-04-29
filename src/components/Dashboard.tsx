@@ -53,7 +53,6 @@ import {
 import { SiSolana } from 'react-icons/si';
 import { Player } from '@lottiefiles/react-lottie-player';
 import { FeaturesSection } from './ui/FeaturesSection';
-import { TransactionNetworkGraph } from './ui/TransactionNetworkGraph';
 
 // Register ChartJS components
 ChartJS.register(
@@ -1382,42 +1381,6 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </motion.div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* 3D Transaction Network Visualization */}
-              {transactions && transactions.length > 0 && currentAddress && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.9 }}
-                  className="glass-panel overflow-hidden rounded-xl"
-                >
-                  <div className="p-4 border-b border-gray-200/70 dark:border-gray-700/70">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                      <RiRadarLine className="text-solana-purple" />
-                      Transaction Network
-                    </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      Interactive 3D visualization of transaction relationships. Drag to rotate, scroll to zoom.
-                    </p>
-                  </div>
-                  <div className="p-4">
-                    <div className="h-[500px] w-full">
-                      <TransactionNetworkGraph 
-                        transactions={transactions}
-                        centerAddress={currentAddress}
-                        onNodeClick={(node) => {
-                          if (node.type === 'transaction') {
-                            handleTransactionClick(node.id);
-                          }
-                        }}
-                        selectedNode={selectedTransaction}
-                        width={Math.min(window.innerWidth * 0.8, 1200)}
-                        height={500}
-                      />
-                    </div>
                   </div>
                 </motion.div>
               )}
