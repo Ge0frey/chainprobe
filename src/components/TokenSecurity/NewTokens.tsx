@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { RiTimeLine, RiInformationLine, RiFileCodeLine, RiUserLine, RiLockLine, RiHashtag } from 'react-icons/ri';
+import { 
+  RiTimeLine, 
+  RiInformationLine, 
+  RiFileCodeLine, 
+  RiUserLine, 
+  RiLockLine, 
+  RiHashtag,
+  RiExternalLinkLine,
+  RiCalendarLine
+} from 'react-icons/ri';
 import { Spinner } from '../ui/Spinner';
 
 // Define interface for the actual API response
@@ -37,7 +46,6 @@ export default function NewTokens() {
   const [newTokens, setNewTokens] = useState<NewTokenResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedTokenMint, setExpandedTokenMint] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchNewTokens = async () => {
@@ -56,20 +64,12 @@ export default function NewTokens() {
     fetchNewTokens();
   }, []);
 
-  const handleTokenClick = (mint: string) => {
-    if (expandedTokenMint === mint) {
-      setExpandedTokenMint(null);
-    } else {
-      setExpandedTokenMint(mint);
-    }
-  };
-
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-4 gradient-text">New Tokens</h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Monitor recently created tokens on the Solana network. Click on a token to see more details.
+          Monitor recently created tokens on the Solana network. All token details are displayed for easy viewing.
         </p>
       </div>
 
@@ -82,145 +82,153 @@ export default function NewTokens() {
           {error}
         </div>
       ) : (
-        <div className="glass-panel p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <RiTimeLine className="text-solana-purple" />
-            New Tokens
-          </h2>
-          
-          {newTokens.length === 0 ? (
-            <p className="text-gray-600 dark:text-gray-400 text-center py-8">No new tokens available</p>
-          ) : (
-            <div className="space-y-4">
-              {newTokens.map((token, index) => (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6">
+            {newTokens.length === 0 ? (
+              <p className="text-gray-600 dark:text-gray-400 text-center py-8 glass-panel">No new tokens available</p>
+            ) : (
+              newTokens.map((token, index) => (
                 <motion.div
                   key={token.mint}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="p-4 bg-white/5 dark:bg-black/10 rounded-lg border border-gray-200 dark:border-gray-800 cursor-pointer hover:bg-white/10 dark:hover:bg-black/20 transition-all"
-                  onClick={() => handleTokenClick(token.mint)}
+                  className="glass-panel p-4 rounded-xl"
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-semibold">{token.symbol || 'Unknown'}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {shortenAddress(token.mint)}
-                        <a 
-                          href={`https://solscan.io/token/${token.mint}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="ml-2 text-solana-purple hover:underline inline-flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <RiInformationLine /> View on Solscan
-                        </a>
-                      </p>
+                  {/* Token Header */}
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-white/10 dark:bg-gray-800/50 rounded-lg">
+                        <RiTimeLine className="text-2xl text-solana-purple" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">
+                          {token.symbol || 'Unknown'}
+                        </h3>
+                        <div className="flex items-center gap-1 text-sm">
+                          <a 
+                            href={`https://solscan.io/token/${token.mint}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-solana-purple hover:underline inline-flex items-center gap-1"
+                          >
+                            {shortenAddress(token.mint)}
+                            <RiExternalLinkLine />
+                          </a>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-500">
-                      {formatDate(token.createAt)}
-                    </p>
+                    
+                    <div className="text-right">
+                      <div className="flex items-center gap-1 text-sm text-gray-500">
+                        <RiCalendarLine />
+                        {formatDate(token.createAt)}
+                      </div>
+                    </div>
                   </div>
-
-                  {/* Token Details (Expanded) */}
-                  {expandedTokenMint === token.mint && (
-                    <motion.div 
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800"
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Token Details */}
+                  
+                  {/* Token Content */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    {/* Left Column - Token Details */}
+                    <div>
+                      <h4 className="font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">Token Details</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <RiHashtag className="text-solana-purple" />
+                          <span className="text-gray-600 dark:text-gray-400">Decimals:</span>
+                          <span className="font-medium">{token.decimals}</span>
+                        </div>
+                        
                         <div>
-                          <h3 className="font-medium mb-2">Token Details</h3>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <RiHashtag className="text-solana-purple" />
-                              <span className="text-gray-600 dark:text-gray-400">Decimals:</span>
-                              <span className="font-medium">{token.decimals}</span>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <RiUserLine className="text-solana-purple mt-1" />
-                              <span className="text-gray-600 dark:text-gray-400">Creator:</span>
-                              <span className="font-medium break-all">
-                                {token.creator}
-                                <a 
-                                  href={`https://solscan.io/account/${token.creator}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="ml-2 text-solana-teal hover:underline inline-flex items-center gap-1 text-sm"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <RiInformationLine /> View
-                                </a>
-                              </span>
+                          <div className="flex items-center gap-2 text-sm mb-1">
+                            <RiUserLine className="text-solana-purple" />
+                            <span className="text-gray-600 dark:text-gray-400">Creator:</span>
+                          </div>
+                          <div className="pl-6">
+                            <div className="font-medium text-xs break-all flex gap-1 items-center">
+                              {token.creator}
+                              <a 
+                                href={`https://solscan.io/account/${token.creator}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-solana-teal hover:underline"
+                              >
+                                <RiExternalLinkLine />
+                              </a>
                             </div>
                           </div>
                         </div>
-
-                        {/* Authorities */}
+                        
                         <div>
-                          <h3 className="font-medium mb-2">Authorities</h3>
-                          <div className="space-y-2">
-                            <div className="flex items-start gap-2">
-                              <RiLockLine className="text-solana-teal mt-1" />
-                              <span className="text-gray-600 dark:text-gray-400">Mint Authority:</span>
-                              <span className="font-medium break-all">
-                                {token.mintAuthority || 'None'}
-                              </span>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <RiLockLine className="text-solana-teal mt-1" />
-                              <span className="text-gray-600 dark:text-gray-400">Freeze Authority:</span>
-                              <span className="font-medium break-all">
-                                {token.freezeAuthority || 'None'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Program */}
-                        <div className="md:col-span-2">
-                          <h3 className="font-medium mb-2">Program</h3>
-                          <div className="flex items-start gap-2">
-                            <RiFileCodeLine className="text-solana-orange mt-1" />
+                          <div className="flex items-center gap-2 text-sm mb-1">
+                            <RiFileCodeLine className="text-solana-orange" />
                             <span className="text-gray-600 dark:text-gray-400">Token Program:</span>
-                            <span className="font-medium break-all">
+                          </div>
+                          <div className="pl-6">
+                            <div className="font-medium text-xs break-all flex gap-1 items-center">
                               {token.program}
                               <a 
                                 href={`https://solscan.io/account/${token.program}`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="ml-2 text-solana-teal hover:underline inline-flex items-center gap-1 text-sm"
-                                onClick={(e) => e.stopPropagation()}
+                                className="text-solana-teal hover:underline"
                               >
-                                <RiInformationLine /> View
+                                <RiExternalLinkLine />
                               </a>
-                            </span>
+                            </div>
                           </div>
                         </div>
-
-                        {/* Timestamps */}
-                        <div className="md:col-span-2">
-                          <h3 className="font-medium mb-2">Timestamps</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      </div>
+                    </div>
+                    
+                    {/* Right Column - Authorities & Timestamps */}
+                    <div>
+                      <h4 className="font-medium text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-2 mb-3">Authorities</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <div className="flex items-center gap-2 text-sm mb-1">
+                            <RiLockLine className="text-solana-teal" />
+                            <span className="text-gray-600 dark:text-gray-400">Mint Authority:</span>
+                          </div>
+                          <div className="pl-6">
+                            <div className="font-medium text-xs break-all">
+                              {token.mintAuthority || 'None'}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="flex items-center gap-2 text-sm mb-1">
+                            <RiLockLine className="text-solana-teal" />
+                            <span className="text-gray-600 dark:text-gray-400">Freeze Authority:</span>
+                          </div>
+                          <div className="pl-6">
+                            <div className="font-medium text-xs break-all">
+                              {token.freezeAuthority || 'None'}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4">
+                          <h5 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Timestamps</h5>
+                          <div className="grid grid-cols-1 gap-2 text-sm">
                             <div>
-                              <span className="text-gray-600 dark:text-gray-400">Created At:</span>
+                              <span className="text-gray-600 dark:text-gray-400">Created:</span>
                               <span className="ml-2 font-medium">{formatDate(token.createAt)}</span>
                             </div>
                             <div>
-                              <span className="text-gray-600 dark:text-gray-400">Updated At:</span>
+                              <span className="text-gray-600 dark:text-gray-400">Updated:</span>
                               <span className="ml-2 font-medium">{formatDate(token.updatedAt)}</span>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </motion.div>
-                  )}
+                    </div>
+                  </div>
                 </motion.div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>
