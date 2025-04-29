@@ -13,6 +13,7 @@ import ReactFlow, {
   Edge,
   Viewport,
   BackgroundVariant,
+  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { format } from 'date-fns';
@@ -40,6 +41,8 @@ import {
   RiFullscreenLine,
   RiFlowChart,
   RiArrowRightLine,
+  RiArrowLeftLine,
+  RiCloseLine,
 } from 'react-icons/ri';
 import { Player } from '@lottiefiles/react-lottie-player';
 
@@ -88,20 +91,59 @@ const nodeStyles = {
   },
 };
 
-// Improved CustomNode component with animations and better tooltip
+// Enhanced edge styles with more visual distinction and direction indicators
+const edgeStyles = {
+  critical: {
+    stroke: '#ef4444',
+    strokeWidth: 3,
+    animated: true,
+    style: {
+      strokeDasharray: '5,5',
+    }
+  },
+  highVolume: {
+    stroke: '#3b82f6',
+    strokeWidth: 2.5,
+    animated: true,
+  },
+  incoming: {
+    stroke: '#14F195', // Solana teal for incoming
+    strokeWidth: 2,
+    animated: true,
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: '#14F195',
+    },
+  },
+  outgoing: {
+    stroke: '#9945FF', // Solana purple for outgoing
+    strokeWidth: 2,
+    animated: true,
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: '#9945FF',
+    },
+  },
+  default: {
+    stroke: 'rgba(148, 163, 184, 0.7)',
+    strokeWidth: 1.5,
+    animated: true,
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: 'rgba(148, 163, 184, 0.7)',
+    },
+  },
+};
+
+// Enhanced CustomNode component with better tooltip
 const CustomNode = ({ data }: { data: any }) => {
-  let style;
-  if (data.isExchange) {
-    style = nodeStyles.exchange;
-  } else if (data.isHighRisk) {
-    style = nodeStyles.highRisk;
-  } else if (data.isCenter) {
-    style = nodeStyles.center;
-  } else if (data.type === 'wallet') {
-    style = nodeStyles.wallet;
-  } else {
-    style = nodeStyles.default;
-  }
+  const nodeStyle = useMemo(() => {
+    if (data.isExchange) return nodeStyles.exchange;
+    if (data.isHighRisk) return nodeStyles.highRisk;
+    if (data.isCenter) return nodeStyles.center;
+    if (data.type === 'wallet') return nodeStyles.wallet;
+    return nodeStyles.default;
+  }, [data]);
 
   return (
     <motion.div 
@@ -112,7 +154,7 @@ const CustomNode = ({ data }: { data: any }) => {
     >
       <div 
         className="px-4 py-2 rounded-lg shadow-lg text-white text-sm font-medium min-w-[150px] backdrop-blur-sm"
-        style={style}
+        style={nodeStyle}
       >
         <div className="truncate">{data.label}</div>
         {data.amount && (
@@ -123,48 +165,38 @@ const CustomNode = ({ data }: { data: any }) => {
       </div>
       
       {/* Enhanced tooltip */}
-      <div className="absolute hidden group-hover:block z-50 bg-gray-900/90 backdrop-blur-md text-white p-4 rounded-lg shadow-xl -translate-y-full left-1/2 -translate-x-1/2 mb-2 min-w-[220px] border border-gray-700">
-        <div className="text-sm font-medium mb-2 border-b border-gray-700 pb-2">{data.fullAddress || data.label}</div>
-        <div className="space-y-1 text-xs">
-          <div className="flex justify-between">
-            <span>Total Volume:</span>
-            <span>{data.amount?.toFixed(2)} SOL</span>
+      <div className="absolute hidden group-hover:block z-50 bg-gray-900/90 backdrop-blur-md text-white p-4 rounded-lg shadow-xl -translate-y-full left-1/2 -translate-x-1/2 mb-2 min-w-[250px] border border-gray-700">
+        <div className="text-sm font-medium mb-2 border-b border-gray-700 pb-2">
+          {data.fullAddress || data.label}
+        </div>
+        <div className="space-y-2 text-xs">
+          <div className="flex justify-between items-center">
+            <span>Transactions</span>
+            <div className="flex gap-4">
+              <span className="flex items-center text-solana-purple">
+                <RiArrowRightLine className="mr-1" />
+                {data.outgoingCount || 0}
+              </span>
+              <span className="flex items-center text-solana-teal">
+                <RiArrowLeftLine className="mr-1" />
+                {data.incomingCount || 0}
+              </span>
+            </div>
           </div>
           <div className="flex justify-between">
-            <span>Transaction Count:</span>
-            <span>{data.transactionCount || 0}</span>
+            <span>Total Volume</span>
+            <span>{data.totalVolume?.toFixed(2) || 0} SOL</span>
           </div>
+          {data.lastActivity && (
+            <div className="flex justify-between">
+              <span>Last Activity</span>
+              <span>{format(new Date(data.lastActivity), 'MMM d, yyyy')}</span>
+            </div>
+          )}
           {data.type && (
             <div className="flex justify-between">
-              <span>Type:</span>
+              <span>Type</span>
               <span className="capitalize">{data.type}</span>
-            </div>
-          )}
-          {data.riskScore !== undefined && (
-            <div className="flex justify-between">
-              <span>Risk Score:</span>
-              <div className="flex items-center">
-                <div className="w-16 bg-gray-700 rounded-full h-1 mr-2">
-                  <div 
-                    className="h-full rounded-full bg-gradient-to-r from-green-500 to-red-500"
-                    style={{ width: `${data.riskScore * 100}%` }}
-                  />
-                </div>
-                <span className={data.riskScore > 0.7 ? 'text-red-400' : data.riskScore > 0.4 ? 'text-yellow-400' : 'text-green-400'}>
-                  {(data.riskScore * 100).toFixed(0)}%
-                </span>
-              </div>
-            </div>
-          )}
-          {data.correlations && data.correlations.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-gray-700">
-              <div className="font-medium mb-1">Top Correlations:</div>
-              {data.correlations.map((corr: any, index: number) => (
-                <div key={index} className="flex justify-between text-xs">
-                  <span className="truncate">{corr.address.slice(0, 6)}...</span>
-                  <span>{(corr.strength * 100).toFixed(0)}%</span>
-                </div>
-              ))}
             </div>
           )}
         </div>
@@ -172,32 +204,6 @@ const CustomNode = ({ data }: { data: any }) => {
       </div>
     </motion.div>
   );
-};
-
-// Enhanced edge styles with more visual distinction
-const edgeStyles = {
-  critical: {
-    stroke: '#ef4444',
-    strokeWidth: 3,
-    strokeDasharray: '5,5',
-  },
-  highVolume: {
-    stroke: '#3b82f6',
-    strokeWidth: 2.5,
-  },
-  frequent: {
-    stroke: '#8b5cf6',
-    strokeWidth: 2,
-  },
-  suspicious: {
-    stroke: '#f59e0b',
-    strokeWidth: 2,
-    strokeDasharray: '3,3',
-  },
-  default: {
-    stroke: 'rgba(148, 163, 184, 0.7)',
-    strokeWidth: 1.5,
-  },
 };
 
 // Enhanced flow control panel
@@ -260,7 +266,7 @@ function FlowVisualization({
   onNodesChange: (changes: any) => void;
   onEdgesChange: (changes: any) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
-  selectedNode: string | null;
+  selectedNode: Node | null;
 }) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -290,7 +296,7 @@ function FlowVisualization({
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         style={{ background: 'transparent' }}
       >
-        <Background color="#94a3b8" variant="dots" />
+        <Background variant={BackgroundVariant.Dots} color="#94a3b8" />
         <Controls className="bg-white/90 dark:bg-gray-800/90 p-2 rounded-lg shadow-lg" />
         <MiniMap 
           nodeColor={node => {
@@ -314,6 +320,134 @@ function FlowVisualization({
   );
 }
 
+// Node Details Panel Component
+const NodeDetailsPanel = ({ node, transactions, onClose }: { 
+  node: Node | null;
+  transactions: any[];
+  onClose: () => void;
+}) => {
+  if (!node) return null;
+
+  const nodeTransactions = transactions.filter(
+    tx => tx.from === node.id || tx.to === node.id
+  );
+
+  const stats = {
+    totalVolume: nodeTransactions.reduce((sum, tx) => sum + tx.amount, 0),
+    outgoing: nodeTransactions.filter(tx => tx.from === node.id),
+    incoming: nodeTransactions.filter(tx => tx.to === node.id),
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      className="glass-panel rounded-xl p-6 mt-6"
+    >
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-lg font-semibold">Address Details</h2>
+        <button
+          onClick={onClose}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+        >
+          <RiCloseLine className="text-xl" />
+        </button>
+      </div>
+
+      {/* Overview Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="glass-card p-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Total Volume</div>
+          <div className="text-lg font-semibold mt-1">{stats.totalVolume.toFixed(2)} SOL</div>
+        </div>
+        <div className="glass-card p-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Outgoing</div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-lg font-semibold">{stats.outgoing.length}</span>
+            <span className="text-sm text-gray-500">txns</span>
+            <span className="text-sm text-solana-purple ml-2">
+              {stats.outgoing.reduce((sum, tx) => sum + tx.amount, 0).toFixed(2)} SOL
+            </span>
+          </div>
+        </div>
+        <div className="glass-card p-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Incoming</div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-lg font-semibold">{stats.incoming.length}</span>
+            <span className="text-sm text-gray-500">txns</span>
+            <span className="text-sm text-solana-teal ml-2">
+              {stats.incoming.reduce((sum, tx) => sum + tx.amount, 0).toFixed(2)} SOL
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Transaction List */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Recent Transactions</h3>
+        <div className="space-y-3">
+          {nodeTransactions.slice(0, 5).map((tx, index) => (
+            <div 
+              key={index}
+              className="glass-card p-4 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  {tx.from === node.id ? (
+                    <RiArrowRightLine className="text-solana-purple" />
+                  ) : (
+                    <RiArrowLeftLine className="text-solana-teal" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {tx.from === node.id ? 'Outgoing' : 'Incoming'}
+                  </span>
+                </div>
+                <span className="text-xs text-gray-500">
+                  {format(new Date(tx.timestamp * 1000), 'MMM d, yyyy HH:mm')}
+                </span>
+              </div>
+              
+              <div className="flex justify-between text-sm">
+                <div className="flex flex-col">
+                  <span className="text-gray-500 text-xs">From</span>
+                  <span className="font-mono">{tx.from.slice(0, 8)}...{tx.from.slice(-6)}</span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-gray-500 text-xs">To</span>
+                  <span className="font-mono">{tx.to.slice(0, 8)}...{tx.to.slice(-6)}</span>
+                </div>
+              </div>
+              
+              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <span className={`text-sm font-medium ${
+                  tx.from === node.id ? 'text-solana-purple' : 'text-solana-teal'
+                }`}>
+                  {tx.amount.toFixed(2)} SOL
+                </span>
+                <a 
+                  href={`https://solscan.io/tx/${tx.signature}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-solana-purple hover:underline"
+                >
+                  View on Explorer
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {nodeTransactions.length > 5 && (
+          <button className="w-full py-2 text-sm text-center text-solana-purple hover:text-solana-teal transition-colors">
+            View all transactions
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
 export default function TransactionFlow() {
   const [searchAddress, setSearchAddress] = useState('');
   const [currentAddress, setCurrentAddress] = useState<string | null>(null);
@@ -326,7 +460,7 @@ export default function TransactionFlow() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [flowData, setFlowData] = useState<TxFlow | null>(null);
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
   const containerStyle = {
     width: '100%',
@@ -494,18 +628,30 @@ export default function TransactionFlow() {
       },
     }));
 
-    // Create edges with improved styling
+    // Create edges with improved styling and direction indicators
     const newEdges = transactions.map((tx, index) => ({
       id: `${tx.from}-${tx.to}-${index}`,
       source: tx.from,
       target: tx.to,
+      type: 'smoothstep',
       animated: true,
       style: {
-        stroke: '#4CAF50',
-        strokeWidth: 2,
+        stroke: tx.from === currentAddress ? edgeStyles.outgoing.stroke : 
+               tx.to === currentAddress ? edgeStyles.incoming.stroke : 
+               edgeStyles.default.stroke,
+        strokeWidth: tx.amount > 100 ? 3 : tx.amount > 10 ? 2 : 1,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: tx.from === currentAddress ? edgeStyles.outgoing.stroke : 
+               tx.to === currentAddress ? edgeStyles.incoming.stroke : 
+               edgeStyles.default.stroke,
       },
       data: {
         amount: tx.amount,
+        isOutgoing: tx.from === currentAddress,
+        isIncoming: tx.to === currentAddress,
+        timestamp: tx.timestamp,
       },
     }));
 
@@ -514,9 +660,9 @@ export default function TransactionFlow() {
   }, [transactions, currentAddress]);
 
   // Handle node click - select/deselect node
-  const onNodeClick = (event: React.MouseEvent, node: Node) => {
-    setSelectedNode(selectedNode === node.id ? null : node.id);
-  };
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    setSelectedNode(selectedNode?.id === node.id ? null : node);
+  }, [selectedNode]);
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -595,7 +741,7 @@ export default function TransactionFlow() {
           </motion.div>
         )}
 
-        {/* Flow Visualization - enhanced */}
+        {/* Flow Visualization */}
         {!txLoading && !txError && transactions && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -605,11 +751,16 @@ export default function TransactionFlow() {
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Transaction Flow</h2>
               <div className="flex items-center gap-4">
-                {selectedNode && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Selected:</span> {selectedNode.slice(0, 6)}...{selectedNode.slice(-4)}
-                  </div>
-                )}
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-solana-purple mr-1" />
+                    Outgoing
+                  </span>
+                  <span className="flex items-center ml-4">
+                    <div className="w-3 h-3 rounded-full bg-solana-teal mr-1" />
+                    Incoming
+                  </span>
+                </div>
               </div>
             </div>
             
@@ -626,76 +777,13 @@ export default function TransactionFlow() {
           </motion.div>
         )}
 
-        {/* Transaction Details - new section when a node is selected */}
-        {selectedNode && !txLoading && !txError && transactions && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-panel rounded-xl p-6 mt-6"
-          >
-            <h2 className="text-lg font-semibold mb-4">Transaction Details</h2>
-            
-            <div className="space-y-4">
-              {/* Filter transactions for selected node */}
-              {transactions
-                .filter(tx => tx.from === selectedNode || tx.to === selectedNode)
-                .slice(0, 5) // Show only the first 5 for brevity
-                .map((tx, index) => (
-                  <div 
-                    key={tx.signature || index}
-                    className="p-4 bg-card/30 rounded-lg border border-border"
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-2">
-                        {tx.from === selectedNode ? (
-                          <RiArrowRightLine className="text-red-500" />
-                        ) : (
-                          <RiArrowRightLine className="text-green-500" />
-                        )}
-                        <span className="text-sm font-medium">
-                          {tx.from === selectedNode ? 'Outgoing' : 'Incoming'}
-                        </span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(tx.timestamp * 1000).toLocaleString()}
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between text-sm">
-                      <div className="flex flex-col">
-                        <span className="text-muted-foreground text-xs">From</span>
-                        <span className="font-mono">{tx.from.slice(0, 8)}...{tx.from.slice(-6)}</span>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-muted-foreground text-xs">To</span>
-                        <span className="font-mono">{tx.to.slice(0, 8)}...{tx.to.slice(-6)}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-2 pt-2 border-t border-border flex justify-between items-center">
-                      <span className={`text-sm font-medium ${tx.from === selectedNode ? 'text-red-500' : 'text-green-500'}`}>
-                        {tx.amount.toFixed(2)} SOL
-                      </span>
-                      <a 
-                        href={`https://solscan.io/tx/${tx.signature}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-solana-purple hover:underline"
-                      >
-                        View on Explorer
-                      </a>
-                    </div>
-                  </div>
-                ))}
-                
-              {/* Show more link if there are more than 5 transactions */}
-              {transactions.filter(tx => tx.from === selectedNode || tx.to === selectedNode).length > 5 && (
-                <button className="w-full py-2 text-sm text-center text-solana-purple hover:text-solana-teal transition-colors">
-                  View all transactions
-                </button>
-              )}
-            </div>
-          </motion.div>
+        {/* Node Details Panel */}
+        {selectedNode && transactions && (
+          <NodeDetailsPanel
+            node={selectedNode}
+            transactions={transactions}
+            onClose={() => setSelectedNode(null)}
+          />
         )}
 
         {/* Empty State */}
