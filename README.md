@@ -6,6 +6,13 @@
   <p>Investigate transactions, analyze wallet behavior, and detect suspicious patterns on the Solana blockchain</p>
 </div>
 
+## Access platform from - https://chainprobe.vercel.app
+
+# Quick links
+### Short screencast non-commentary preview - https://drive.google.com/file/d/1L2XPr_I6tNZvmQcqJqMm-5kj7FHkOQ76/view?usp=sharing
+### Video demo link with commentary -  https://youtu.be/vC2G1Ucv6W8
+### Detailed write up - https://dev.to/geoffrey_kimani_18776c699/chainprobe-2h88
+
 ## Overview
 
 ChainProbe is a comprehensive blockchain forensic analysis tool built for the Solana ecosystem. It provides powerful features to track transaction flows, analyze wallet behavior, identify suspicious patterns, and perform security audits on tokens and smart contracts.
