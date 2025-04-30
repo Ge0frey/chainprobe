@@ -169,7 +169,10 @@ Used for Solana blockchain data access, transaction details, and enhanced transa
 ### Webacy API
 Provides risk assessment, sanction checking, and security analysis.
 
-### Dune API (Optional)
+### Solscan API
+Provides relevant endpoint(s), such as account details, token transfers, watchlists, leaderboards, market data
+
+### Dune API 
 Offers additional analytics and token balance information.
 
 ## Customization
