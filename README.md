@@ -197,6 +197,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgements
 
 - [Solana](https://solana.com/)
+- [Solscan](https://solscan.io/)
 - [Helius](https://helius.xyz/)
 - [Webacy](https://webacy.com/)
 - [Dune](https://dune.com/)
