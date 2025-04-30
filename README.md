@@ -59,8 +59,8 @@ The platform serves as an essential toolkit for:
 
 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/forensic-analysis-tool.git
-cd forensic-analysis-tool
+git clone https://github.com/ge0frey/chainprobe.git
+cd chainprobe
 ```
 
 2. Install dependencies
@@ -193,10 +193,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Security
-
-If you discover a security vulnerability within this application, please send an email to security@chainprobe.com.
 
 ## Acknowledgements
 
