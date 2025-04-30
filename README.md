@@ -1,347 +1,215 @@
-# ChainProbe: Solana Forensic Analysis Tool
+# ChainProbe: Blockchain Forensic Analysis Tool
 
 <div align="center">
-  <img src="public/solanaLogoMark.svg" alt="ChainProbe Logo" width="120" />
-  <h3>Advanced Blockchain Forensics Platform</h3>
+  <img src="/public/solanaLogoMark.svg" alt="ChainProbe Logo" width="100" />
+  <h3>Advanced Blockchain Forensic Analysis Platform for Solana</h3>
+  <p>Investigate transactions, analyze wallet behavior, and detect suspicious patterns on the Solana blockchain</p>
 </div>
 
-ChainProbe is a comprehensive blockchain forensics and analytics platform designed for the Solana ecosystem. This tool helps investigators, researchers, compliance teams, and blockchain analysts to deeply analyze on-chain activities, track fund movements, detect suspicious patterns, and identify relationships in transaction flows with precision and clarity.
+## Overview
 
-## 📊 Overview
+ChainProbe is a comprehensive blockchain forensic analysis tool built for the Solana ecosystem. It provides powerful features to track transaction flows, analyze wallet behavior, identify suspicious patterns, and perform security audits on tokens and smart contracts.
 
-ChainProbe provides a suite of powerful analytics tools that leverage the Solana blockchain's data to reveal insights that may not be apparent through conventional blockchain explorers. With a focus on investigative workflows, the platform enables users to:
+The platform serves as an essential toolkit for:
+- Blockchain investigators tracking illicit funds
+- Security researchers analyzing suspicious activity
+- DeFi teams conducting due diligence
+- Token projects verifying smart contract security
+- Individual users checking wallet security and token safety
 
-- Track the complete journey of funds across multiple hops and addresses
-- Identify patterns in transaction behaviors that may indicate suspicious activities
-- Visualize complex transaction networks with interactive graph representations
-- Label and categorize entities for more effective investigations
-- Generate detailed reports on wallet activities and transaction histories
+## Features
 
-## 🚀 Features
+### Core Analysis Tools
 
-### 📈 Dashboard
-- Real-time network statistics showing Solana blockchain metrics
-- Live transaction monitoring with automatic updates
-- Comprehensive wallet activity overview with transaction history
-- Detailed token balance tracking with price information
-- Status indicators for transaction confirmations
-- Visualizations of transaction patterns and distributions
+- **Transaction Flow Visualization**: Interactive graph visualization of fund movements between wallets
+- **Wallet Analysis**: Deep-dive into wallet behavior, transaction history, and risk assessment
+- **Transaction Clustering**: Group related transactions to reveal hidden networks and connections
+- **Pattern Analysis**: Detect suspicious patterns like wash trading, circular transactions, and anomalies
+- **Entity Labels**: Identify and label known entities like exchanges, protocols, and suspicious actors
 
-### 🔄 Transaction Flow Visualization
-- Interactive graph visualization of fund movements
-- Node-based representation of wallets and transactions
-- Visual tracking of token transfers between addresses
-- Direction and value indicators for funds flow
-- Highlight of significant transactions and patterns
-- Customizable time range for analysis
-- Zoom and pan capabilities for large transaction networks
-- Path tracing for specific fund movements
+### Token Security
 
-### 👛 Wallet Analysis
-- Advanced wallet profiling with behavioral metrics
-- Detailed wallet activity metrics and scoring
-- Historical activity patterns and timelines
-- Token balance tracking and transaction history
-- Volume distribution analysis with charts
-- Transaction pattern identification and anomaly detection
-- Interactive charts and graphs for data visualization
-- Unique interaction tracking and relationship mapping
-- Risk scoring based on transaction behaviors
+- **Token Analyzer**: Comprehensive risk assessment and analysis of token contracts
+- **Trending Tokens**: Monitor and analyze popular tokens with risk scoring
+- **New Tokens**: Track newly created tokens and assess their security risks
+- **Verified Tokens**: Directory of verified secure tokens with reputation data
 
-### 🏷️ Entity Labels
-- Custom labeling system for addresses with confidence ratings
-- Known entity identification from established databases
-- Confidence scoring for labels with evidence tracking
-- Bulk address labeling for efficient categorization
-- Label management interface with search and filter capabilities
-- Export and import label data in various formats
-- Propagation of labels through transaction networks
-- Label sharing and collaborative investigations
+### Advanced Tools
 
-### 🔍 Transaction Clustering
-- Advanced pattern recognition with machine learning algorithms
-- Group related transactions with adjustable parameters
-- Identify common transaction patterns and typologies
-- Time-based clustering analysis for temporal patterns
-- Volume-based relationship mapping
-- Circular transaction detection
-- Layering and structuring pattern identification
-- Visualization of cluster relationships
+- **Smart Contract Scanner**: Analyze smart contract code for vulnerabilities and security risks
+- **Bridge Monitor**: Track cross-chain bridge transactions with risk assessment
 
-### 🔎 Pattern Analysis
-- Detection of known financial crime patterns
-- Wash trading identification
-- Round number transaction highlighting
-- Temporal anomaly detection
-- Velocity analysis of fund movements
-- Unusual activity flagging with configurable thresholds
-- Risk assessment based on pattern combinations
-- Historical pattern comparison
+## Technology Stack
 
-## 🛠️ Technical Stack
+- **Frontend**: React with TypeScript
+- **State Management**: React Query for server state
+- **Styling**: Tailwind CSS with custom theme
+- **Visualization**: Force Graph, ChartJS, ReactFlow
+- **APIs**: Helius (Solana), Webacy (risk assessment)
+- **Authentication**: Solana wallet authentication
 
-- **Frontend Framework**: React 18 with TypeScript 
-- **Build Tool**: Vite for fast development and optimized production builds
-- **Styling**: Tailwind CSS with custom theme support
-- **State Management**: React Query for efficient server state management
-- **Blockchain Integration**: Solana Web3.js for direct blockchain interaction
-- **Data Visualization**: React Flow for networks, Chart.js for analytics
-- **API Integration**: 
-  - Helius API for enhanced transaction data
-  - Solana Beach API for network statistics
-  - Jupiter API for token pricing data
-  - Optional integrations with other data providers
+## Installation
 
-## 📋 Prerequisites
+### Prerequisites
 
-- Node.js (v16.x or later)
-- npm (v7.x or later) or yarn (v1.22.x or later)
-- API keys:
-  - Helius API key ([Get one here](https://helius.dev))
-  - Solana Beach API key (optional, for enhanced network stats)
-- Basic understanding of Solana blockchain concepts
-- Git for cloning the repository
+- Node.js 16+
+- npm or yarn
 
-## 🔧 Installation
+### Setup
 
-1. Clone the repository:
+1. Clone the repository
 ```bash
-git clone https://github.com/Ge0frey/chainprobe.git
-cd chainprobe
+git clone https://github.com/your-username/forensic-analysis-tool.git
+cd forensic-analysis-tool
 ```
 
-2. Install dependencies:
+2. Install dependencies
 ```bash
 npm install
-# or
-yarn install
 ```
 
-3. Create a `.env` file in the root directory with necessary API keys:
-```env
-# Required
-VITE_HELIUS_API_KEY=your_helius_api_key_here
-VITE_SOLANA_NETWORK=mainnet-beta  # options: mainnet-beta, testnet, devnet
+3. Set up environment variables
+Create a `.env` file in the root directory with the following variables:
+```
+# Helius API Configuration
+VITE_HELIUS_API_KEY=your_helius_api_key
+VITE_SOLANA_NETWORK=mainnet-beta
 
-# Optional - For enhanced features
-VITE_SOLANA_BEACH_API_KEY=your_solana_beach_api_key_here
-VITE_JUPITER_API_KEY=your_jupiter_api_key_here
+# DD.xyz API Key (Webacy)
+VITE_DD_API_KEY=your_dd_api_key
 
-# Feature flags
+# Dune API Key (optional)
+VITE_DUNE_API_KEY=your_dune_api_key
+
+# Feature Flags
 VITE_ENABLE_LIVE_UPDATES=true
 VITE_DEFAULT_TXN_LIMIT=100
 ```
 
-4. Start the development server:
+4. Start the development server
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
-5. Building for production:
-```bash
-npm run build
-# or
-yarn build
-```
+## Usage Guide
 
-6. Preview the production build:
-```bash
-npm run preview
-# or
-yarn preview
-```
+### Transaction Flow Analysis
 
-## 🚀 Deployment
-
-### Vercel/Netlify
-The application is configured for easy deployment on platforms like Vercel or Netlify:
-
-1. Connect your GitHub repository
-2. Configure the build command as `npm run build` or `yarn build`
-3. Set the publish directory to `dist`
-4. Add the environment variables from your `.env` file
-
-## 💻 Usage Guide
-
-### Dashboard
-1. Navigate to the dashboard
-2. View the real-time Solana network statistics at the top
-3. Enter a Solana wallet address in the search bar
-4. Review recent transactions, with detailed breakdowns
-5. Examine token balances and holdings
-6. Click on transactions to see full details including token transfers
-7. Use the external links to view transactions on block explorers
-
-### Transaction Flow
-1. Go to the Transaction Flow page
+1. Navigate to the Transaction Flow page
 2. Enter a wallet address to analyze
-3. Select the time range for analysis (1 day to 90 days)
-4. Adjust depth settings to control how many hops to include
-5. Use filters to focus on specific transaction types or token amounts
-6. Interact with the graph to explore connections:
-   - Zoom in/out for detail
-   - Click nodes to highlight connected addresses
-   - Hover over edges to see transaction details
-7. Export visualizations as PNG or SVG for reports
-8. Save investigation state for later analysis
+3. Explore the interactive graph showing fund movements
+4. Click on nodes to see detailed transaction information
+5. Use filters to focus on specific time periods or transaction types
 
 ### Wallet Analysis
-1. Access the Wallet Analysis section
-2. Input a wallet address
-3. View comprehensive metrics:
-   - Activity timeline
-   - Transaction volume patterns
-   - Counterparty relationships
-   - Token portfolio changes
-4. Examine behavior patterns and anomalies
-5. Review historical address activity with time-series charts
-6. Generate risk assessment based on activity patterns
-7. Export data in CSV or JSON format for further analysis
 
-### Entity Labels
-1. Visit the Entity Labels page
-2. Add addresses manually or import in bulk
-3. Assign custom labels with confidence scores and evidence
-4. Use suggested labels from integrated databases
-5. Manage existing labels with the label browser
-6. Search and filter labels by various criteria
-7. Export label data in multiple formats
-8. Activate label propagation to automatically apply labels to related addresses
-9. Share labels with team members or export for compliance reports
+1. Go to the Wallet Analysis page
+2. Enter a wallet address to investigate
+3. View comprehensive data including:
+   - Transaction history
+   - Balance history
+   - Risk assessment
+   - Connected entities
+   - Activity patterns
+
+### Token Security Analysis
+
+1. Navigate to the Token Analyzer
+2. Enter a token mint address
+3. Review the comprehensive security analysis including:
+   - Contract audit results
+   - Risk factors
+   - Liquidity assessment
+   - Holder distribution
+   - Rugpull indicators
+
+## Key Components
+
+### Dashboard
+
+The Dashboard provides an overview of:
+- Recent transactions
+- Network statistics
+- Trending tokens
+- High-risk patterns
+- Wallet activity summaries
 
 ### Transaction Clustering
-1. Open the Transaction Clustering section
-2. Enter a starting wallet address
-3. Select clustering parameters:
-   - Relationship depth
-   - Time window
-   - Value thresholds
-   - Pattern types
-4. View the generated clusters with relationship strengths
-5. Interact with the cluster visualization to understand relationships
-6. Drill down into specific clusters for detailed transaction views
-7. Save clustering results for ongoing investigations
-8. Export cluster data for integration with other tools
+
+The Transaction Clustering feature:
+- Groups related transactions by patterns
+- Identifies potential clusters of suspicious wallets
+- Visualizes connections between different wallet clusters
+- Assigns risk scores to clusters
 
 ### Pattern Analysis
-1. Navigate to the Pattern Analysis section
-2. Enter an address or group of addresses
-3. Select the types of patterns to search for
-4. Configure sensitivity and threshold settings
-5. Review detected patterns with confidence scores
-6. Examine specific transactions that contribute to patterns
-7. Generate risk reports based on pattern combinations
-8. Export findings for compliance documentation
 
-## 🔍 Advanced Features
+The Pattern Analysis tool:
+- Detects circular transaction patterns
+- Identifies wash trading activity
+- Spots abnormal transaction timings
+- Finds unusual transaction amounts
+- Analyzes temporal patterns in wallet activity
 
-### Custom Pattern Creation
-Create your own pattern detection rules using the pattern editor:
-1. Define pattern criteria (transaction types, values, timing)
-2. Set detection thresholds and confidence levels
-3. Test patterns against historical data
-4. Save and apply patterns to investigations
+### Bridge Monitor
 
-### Batch Analysis
-Process multiple addresses simultaneously:
-1. Upload CSV file with addresses
-2. Select analysis type and parameters
-3. Process in parallel for efficient investigation
-4. Export combined results
+The Bridge Monitor:
+- Tracks cross-chain bridge transactions
+- Monitors for suspicious cross-chain activity
+- Alerts on high-risk bridging patterns
+- Verifies transaction completion across chains
 
-### API Integration
-ChainProbe can be integrated with other tools via its REST API:
-1. Enable the API server in settings
-2. Use the provided API key for authentication
-3. Make requests to available endpoints
-4. Process results in external systems
+## API Integration
 
-## 🔐 Security Considerations
+ChainProbe integrates with several external APIs:
 
-- API keys should be kept secure and never committed to version control
-- Use environment variables for sensitive configuration
-- Consider using a .env.local file for development (it's git-ignored by default)
-- Regularly update dependencies for security patches
-- Monitor API rate limits and usage
-- Be aware that blockchain data is public but your investigations are private
-- Use secure connections (HTTPS) when deploying the application
-- Consider IP restriction for API keys when supported by providers
+### Helius API
+Used for Solana blockchain data access, transaction details, and enhanced transaction metadata.
 
-## 🛠️ Troubleshooting
+### Webacy API
+Provides risk assessment, sanction checking, and security analysis.
 
-### API Connection Issues
-- Verify your API keys are correctly set in the .env file
-- Check API provider status pages for service disruptions
-- Ensure you're not exceeding rate limits
-- Try using a VPN if geographical restrictions apply
+### Dune API (Optional)
+Offers additional analytics and token balance information.
 
-### Performance Issues
-- Large transaction sets can impact visualization performance
-- Try limiting the time range or transaction count
-- Increase browser memory limits for large datasets
-- Consider using the batch processing feature for very large analyses
-- Use Chrome or Firefox for optimal performance
+## Customization
 
-### Data Discrepancies
-- Different data providers may have slight variations in transaction data
-- Confirmation status can affect transaction visibility
-- Some complex transactions may not be fully decoded
-- Token amounts may display differently based on decimals configuration
+### Theme
+The application supports both light and dark modes, with a default preference for dark mode. Users can toggle between modes in the settings.
 
-## 🤝 Contributing
+### Risk Assessment
+The risk scoring algorithms can be customized by modifying the weighted parameters in the analysis modules.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-### Development Guidelines
-- Follow TypeScript best practices with strong typing
-- Use functional components with React hooks
-- Maintain the existing code structure and naming conventions
-- Use the provided styling system with Tailwind CSS
-- Add unit tests for new functionality
-- Document APIs and complex functions
-- Optimize for performance, especially with large datasets
-- Test thoroughly with various wallet types and transaction patterns
-
-## 📚 Additional Resources
-
-- [Solana Documentation](https://docs.solana.com)
-- [Helius API Documentation](https://docs.helius.xyz)
-- [Solana Beach API Documentation](https://docs.solanabeach.io)
-- [React Flow Documentation](https://reactflow.dev)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-- [Blockchain Forensics Best Practices](https://www.chainalysis.com/blog/blockchain-forensics/)
-- [Solana Transaction Structure Guide](https://solana.com/docs/core/transactions)
-
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Security
 
-- Solana Foundation for blockchain infrastructure
-- Helius for enhanced transaction data API
-- Solana Beach for network statistics
-- The Solana developer community
-- Contributors and testers
-- Open source projects that make this tool possible
+If you discover a security vulnerability within this application, please send an email to security@chainprobe.com.
 
-## 📧 Support
+## Acknowledgements
 
-For support, please:
-- Open an issue in the GitHub repository
+- [Solana](https://solana.com/)
+- [Helius](https://helius.xyz/)
+- [Webacy](https://webacy.com/)
+- [Vite](https://vitejs.dev/)
+- [React](https://reactjs.org/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [Tailwind CSS](https://tailwindcss.com/)
+
 ---
 
 <div align="center">
-  <p>
-    <strong>ChainProbe: Bringing clarity to blockchain investigations</strong>
-  </p>
-  <p>
-    <small>© 2023 ChainProbe. All rights reserved.</small>
-  </p>
+  <sub>Built with ❤️ for the Solana community</sub>
 </div>
