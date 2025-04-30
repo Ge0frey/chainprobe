@@ -199,10 +199,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Solana](https://solana.com/)
 - [Helius](https://helius.xyz/)
 - [Webacy](https://webacy.com/)
-- [Vite](https://vitejs.dev/)
-- [React](https://reactjs.org/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
 - [Dune](https://dune.com/)
 
 
