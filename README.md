@@ -44,7 +44,7 @@ The platform serves as an essential toolkit for:
 ### Advanced Tools
 
 - **Smart Contract Scanner**: Analyze smart contract code for vulnerabilities and security risks
-- **Bridge Monitor**: Track cross-chain bridge transactions with risk assessment
+- **Bridge Monitor(still in beta)**: Track cross-chain bridge transactions with risk assessment
 
 ## Technology Stack
 
@@ -158,7 +158,7 @@ The Pattern Analysis tool:
 - Finds unusual transaction amounts
 - Analyzes temporal patterns in wallet activity
 
-### Bridge Monitor
+### Bridge Monitor(ideation phase)
 
 The Bridge Monitor:
 - Tracks cross-chain bridge transactions
