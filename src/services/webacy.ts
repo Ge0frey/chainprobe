@@ -1,16 +1,14 @@
 import axios from 'axios';
 
-const DD_API_KEY = import.meta.env.VITE_DD_API_KEY;
-const DD_API_URL = 'https://api.webacy.com/v1';
+// Backend API URL - update this for production
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
-// Create an axios instance with default config
+// Create an axios instance for backend proxy calls
 const webacyApi = axios.create({
-  baseURL: DD_API_URL,
+  baseURL: API_BASE_URL,
   headers: {
-    'Authorization': `Bearer ${DD_API_KEY}`,
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Access-Control-Allow-Origin': '*'
+    'Accept': 'application/json'
   }
 });
 
@@ -62,7 +60,7 @@ export interface ContractRiskResponse {
 
 export async function getThreatRisks(address: string): Promise<ThreatRiskResponse> {
   try {
-    const response = await webacyApi.post('/threat_risks', { address });
+    const response = await webacyApi.post('/api/webacy/threat_risks', { address });
     return response.data;
   } catch (error) {
     console.error('Error fetching threat risks:', error);
@@ -77,7 +75,7 @@ export async function getThreatRisks(address: string): Promise<ThreatRiskRespons
 
 export async function getSanctionChecks(address: string): Promise<SanctionCheckResponse> {
   try {
-    const response = await webacyApi.post('/sanction_checks', { address });
+    const response = await webacyApi.post('/api/webacy/sanction_checks', { address });
     return response.data;
   } catch (error) {
     console.error('Error fetching sanction checks:', error);
@@ -91,7 +89,7 @@ export async function getSanctionChecks(address: string): Promise<SanctionCheckR
 
 export async function getApprovalRisks(address: string): Promise<ApprovalRiskResponse> {
   try {
-    const response = await webacyApi.post('/approval_risks', { address });
+    const response = await webacyApi.post('/api/webacy/approval_risks', { address });
     return response.data;
   } catch (error) {
     console.error('Error fetching approval risks:', error);
@@ -104,7 +102,7 @@ export async function getApprovalRisks(address: string): Promise<ApprovalRiskRes
 
 export async function getExposureRisk(address: string): Promise<ExposureRiskResponse> {
   try {
-    const response = await webacyApi.post('/exposure_risk', { address });
+    const response = await webacyApi.post('/api/webacy/exposure_risk', { address });
     return response.data;
   } catch (error) {
     console.error('Error fetching exposure risk:', error);
@@ -118,7 +116,7 @@ export async function getExposureRisk(address: string): Promise<ExposureRiskResp
 
 export async function getContractRisk(address: string): Promise<ContractRiskResponse> {
   try {
-    const response = await webacyApi.post('/contract_risk', { address });
+    const response = await webacyApi.post('/api/webacy/contract_risk', { address });
     return response.data;
   } catch (error) {
     console.error('Error fetching contract risk:', error);

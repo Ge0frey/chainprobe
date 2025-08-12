@@ -1,5 +1,8 @@
 import axios from 'axios';
 
+// Backend API URL - update this for production
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 export interface DuneTokenBalance {
   address: string;
   amount: string;
@@ -36,11 +39,8 @@ export interface DuneApiResponse {
 
 export async function fetchDuneTokenBalances(address: string): Promise<DuneTokenBalance[]> {
   try {
-    const response = await axios.get(`https://api.dune.com/api/echo/beta/balances/svm/${address}`, {
-      headers: {
-        'X-Dune-Api-Key': import.meta.env.VITE_DUNE_API_KEY
-      }
-    });
+    // Use backend proxy instead of direct API call
+    const response = await axios.get(`${API_BASE_URL}/api/dune/balances/${address}`);
     
     const data: DuneApiResponse = response.data;
     return data.balances || [];

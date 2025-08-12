@@ -1,12 +1,44 @@
 import { Connection, PublicKey, ParsedTransactionWithMeta } from '@solana/web3.js';
 import axios from 'axios';
 
-const HELIUS_API_KEY = import.meta.env.VITE_HELIUS_API_KEY;
-const HELIUS_RPC_URL = `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`;
+// Backend API URL - update this for production
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 const SOLANA_NETWORK = import.meta.env.VITE_SOLANA_NETWORK || 'mainnet-beta';
 
-// Create a connection using Helius RPC URL
-const connection = new Connection(HELIUS_RPC_URL);
+// Create a connection using the backend proxy for RPC calls
+// We'll create a custom connection class that uses the proxy
+class ProxyConnection extends Connection {
+  constructor() {
+    // Use a placeholder URL since we'll override the requests
+    super('https://api.mainnet-beta.solana.com');
+  }
+
+  async getSignaturesForAddress(
+    address: PublicKey,
+    options?: any,
+    commitment?: any
+  ) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/helius/rpc`, {
+        jsonrpc: "2.0",
+        id: "get-signatures",
+        method: "getSignaturesForAddress",
+        params: [address.toString(), options || {}],
+      });
+      
+      if (response.data.error) {
+        throw new Error(response.data.error.message);
+      }
+      
+      return response.data.result;
+    } catch (error) {
+      console.error('Error fetching signatures:', error);
+      throw error;
+    }
+  }
+}
+
+const connection = new ProxyConnection();
 
 // Known entity labels for common Solana addresses
 const KNOWN_ENTITIES: Record<string, { label: string; type: string }> = {
@@ -106,7 +138,7 @@ async function retryWithBackoff<T>(
 export async function fetchEnhancedTransaction(signature: string): Promise<EnhancedTransaction | null> {
   try {
     const response = await axios.post(
-      HELIUS_RPC_URL,
+      `${API_BASE_URL}/api/helius/rpc`,
       {
         jsonrpc: "2.0",
         id: "enhanced-transaction",
@@ -127,9 +159,9 @@ export async function fetchEnhancedTransaction(signature: string): Promise<Enhan
       return null;
     }
 
-    // Call Parse Transaction API to get enhanced details
+    // Call Parse Transaction API to get enhanced details via proxy
     const parseResponse = await axios.post(
-      `https://api.helius.xyz/v0/transactions/?api-key=${HELIUS_API_KEY}`, 
+      `${API_BASE_URL}/api/helius/transactions`,
       { transactions: [signature] }
     );
 
@@ -162,9 +194,9 @@ export async function fetchWalletTransactions(
         return [];
       }
 
-      // Get enhanced transaction data from Helius
+      // Get enhanced transaction data from Helius via proxy
       const parsedTxs = await axios.post(
-        `https://api.helius.xyz/v0/transactions/?api-key=${HELIUS_API_KEY}`, 
+        `${API_BASE_URL}/api/helius/transactions`,
         { transactions: signatures.map(sig => sig.signature) }
       );
 
@@ -232,7 +264,7 @@ export async function fetchTokenBalances(address: string): Promise<TokenBalance[
   return retryWithBackoff(async () => {
     try {
       const response = await axios.post(
-        HELIUS_RPC_URL,
+        `${API_BASE_URL}/api/helius/rpc`,
         {
           jsonrpc: "2.0",
           id: "token-balances",
@@ -267,7 +299,7 @@ export async function fetchTokenBalances(address: string): Promise<TokenBalance[
       if (mints.length > 0) {
         try {
           const tokenInfoResponse = await axios.get(
-            `https://api.helius.xyz/v0/tokens/metadata?api-key=${HELIUS_API_KEY}&mints=${mints.join(',')}`
+            `${API_BASE_URL}/api/helius/tokens/metadata?mints=${mints.join(',')}`
           );
           
           // Enhance token balances with metadata

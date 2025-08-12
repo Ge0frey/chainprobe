@@ -4,6 +4,12 @@ node_modules
 .env.development.local
 .env.test.local
 .env.production.local
-.env.example
 dist
 .vercel
+
+# Backend directory env files
+backend/.env
+backend/.env.local
+backend/.env.development.local
+backend/.env.test.local
+backend/.env.production.local
