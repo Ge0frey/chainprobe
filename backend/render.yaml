@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: chainprobe-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://chainprobe.vercel.app
+      - key: DUNE_API_KEY
+        sync: false  # Set in Render dashboard
+      - key: DD_API_KEY  
+        sync: false  # Set in Render dashboard
+      - key: HELIUS_API_KEY
+        sync: false  # Set in Render dashboard
